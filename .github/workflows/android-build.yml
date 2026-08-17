@@ -23,7 +23,7 @@ jobs:
       uses: gradle/actions/setup-gradle@v3
     
     - name: Build with Gradle
-      run: gradle assembleDebug --stacktrace --no-daemon
+      run: gradle assembleDebug --stacktrace --no-daemon --console=plain
     
     - name: Upload APK
       uses: actions/upload-artifact@v4
