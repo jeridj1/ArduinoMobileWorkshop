@@ -6,16 +6,13 @@
     <uses-permission android:name="android.permission.USB_PERMISSION" />
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
-    <uses-permission android:name="android.permission.READ_PHONE_STATE" />
     
     <uses-feature android:name="android.hardware.usb.host" />
     
     <application
         android:name=".ArduinoMobileWorkshopApp"
         android:allowBackup="true"
-        android:icon="@mipmap/ic_launcher"
         android:label="@string/app_name"
-        android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@style/Theme.ArduinoMobileWorkshop">
         
@@ -64,15 +61,5 @@
                 <action android:name="android.hardware.usb.action.USB_DEVICE_DETACHED" />
             </intent-filter>
         </receiver>
-        
-        <service
-            android:name="com.arduinomobileworkshop.rp2040.services.LogicAnalyzerService"
-            android:enabled="true"
-            android:exported="false" />
-        
-        <service
-            android:name="com.arduinomobileworkshop.rp2040.services.RP2040ProgrammerService"
-            android:enabled="true"
-            android:exported="false" />
     </application>
 </manifest>
