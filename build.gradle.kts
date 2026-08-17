@@ -8,19 +8,16 @@ plugins {
 // Common dependencies
 val kotlinVersion = "1.9.22"
 val androidGradlePluginVersion = "8.3.1"
-val coreKtxVersion = "1.12.0"
-val appcompatVersion = "1.6.1"
-val materialVersion = "1.11.0"
-val constraintLayoutVersion = "2.1.4"
-val navigationVersion = "2.7.7"
-val lifecycleVersion = "2.7.0"
-val activityKtxVersion = "1.8.2"
-val fragmentKtxVersion = "1.7.0"
-val preferenceKtxVersion = "1.2.1"
-val coroutinesVersion = "1.7.3"
-val usbSerialVersion = "1.2.0"
-val filePickerVersion = "1.0.6"
 
 task clean(type: Delete) {
     delete rootProject.buildDir
+}
+
+// Add repositories for all modules
+allprojects {
+    repositories {
+        google()
+        mavenCentral()
+        maven { url = "https://jitpack.io" }
+    }
 }
