@@ -11,9 +11,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 
-/**
- * Service for managing logic analyzer operations on RP2040
- */
 class LogicAnalyzerService : Service() {
     
     private val binder = LocalBinder()
@@ -22,13 +19,10 @@ class LogicAnalyzerService : Service() {
     private val serviceJob = Job()
     private val serviceScope = CoroutineScope(Dispatchers.Main + serviceJob)
     
-    // Capture state
     private var isCapturing = false
-    private var sampleRate = 1000000 // 1 MHz default
+    private var sampleRate = 1000000
     private var activeChannels = 8
-    private var captureBuffer = ByteArray(0)
     
-    // Callback for capture events
     private var captureCallback: ((ByteArray) -> Unit)? = null
     
     inner class LocalBinder : Binder() {
@@ -54,17 +48,11 @@ class LogicAnalyzerService : Service() {
         stopCapture()
     }
     
-    /**
-     * Configure logic analyzer settings
-     */
     fun configure(sampleRate: Int, channels: Int) {
         this.sampleRate = sampleRate
         this.activeChannels = channels
     }
     
-    /**
-     * Start logic analyzer capture
-     */
     fun startCapture(callback: (ByteArray) -> Unit) {
         if (isCapturing) return
         
@@ -82,9 +70,6 @@ class LogicAnalyzerService : Service() {
         }
     }
     
-    /**
-     * Stop logic analyzer capture
-     */
     fun stopCapture() {
         if (!isCapturing) return
         
@@ -96,14 +81,8 @@ class LogicAnalyzerService : Service() {
         }
     }
     
-    /**
-     * Get current capture status
-     */
     fun isCapturing(): Boolean = isCapturing
     
-    /**
-     * Get current configuration
-     */
     fun getConfiguration(): Map<String, Any> {
         return mapOf(
             "sample_rate" to sampleRate,
@@ -112,17 +91,11 @@ class LogicAnalyzerService : Service() {
         )
     }
     
-    /**
-     * Process captured data (simplified for now)
-     * In actual implementation, this would decode the logic analyzer data
-     */
     fun processCaptureData(data: ByteArray): List<LogicAnalyzerChannel> {
         val channels = mutableListOf<LogicAnalyzerChannel>()
         
-        // For now, create dummy channels
         repeat(activeChannels) { channelIndex ->
             val channelData = mutableListOf<Boolean>()
-            // Simulate some data
             repeat(minOf(100, data.size)) {
                 channelData.add(data[it % data.size].toInt() and (1 shl channelIndex) != 0)
             }
@@ -133,9 +106,6 @@ class LogicAnalyzerService : Service() {
     }
 }
 
-/**
- * Represents a single logic analyzer channel with its captured data
- */
 data class LogicAnalyzerChannel(
     val channelIndex: Int,
     val samples: List<Boolean>
