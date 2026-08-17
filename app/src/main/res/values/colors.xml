@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="arduino_blue">#00979D</color>
+    <color name="arduino_green">#00AA00</color>
+    <color name="arduino_orange">#FF8C00</color>
+    <color name="arduino_red">#CC0000</color>
+    <color name="background_dark">#1E1E1E</color>
+    <color name="surface_dark">#2D2D2D</color>
+    <color name="surface_variant_dark">#3E3E3E</color>
+    <color name="on_surface">#FFFFFF</color>
+    <color name="on_surface_variant">#858585</color>
+    <color name="editor_text">#D4D4D4</color>
+    <color name="editor_background">#1E1E1E</color>
+    <color name="line_number">#858585</color>
+</resources>
