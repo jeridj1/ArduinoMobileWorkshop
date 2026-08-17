@@ -1,0 +1,93 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/background_dark">
+    
+    <androidx.appcompat.widget.Toolbar
+        android:id="@+id/toolbar"
+        android:layout_width="match_parent"
+        android:layout_height="@dimen/toolbar_height"
+        android:background="@color/surface_dark"
+        app:layout_constraintTop_toTopOf="parent">
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Settings"
+            android:textColor="@color/on_surface"
+            android:textSize="18sp"
+            android:textStyle="bold" />
+    </androidx.appcompat.widget.Toolbar>
+    
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:background="@color/surface_dark"
+        android:padding="16dp"
+        app:layout_constraintTop_toBottomOf="@id/toolbar">
+        
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Theme"
+            android:textColor="@color/on_surface"
+            android:textSize="16sp"
+            android:layout_marginTop="16dp" />
+        <Spinner
+            android:id="@+id/themeSpinner"
+            android:layout_width="match_parent"
+            android:layout_height="@dimen/button_height" />
+        
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Font Size"
+            android:textColor="@color/on_surface"
+            android:textSize="16sp"
+            android:layout_marginTop="16dp" />
+        <Spinner
+            android:id="@+id/fontSizeSpinner"
+            android:layout_width="match_parent"
+            android:layout_height="@dimen/button_height" />
+        
+        <com.google.android.material.switch.MaterialSwitch
+            android:id="@+id/showLineNumbersSwitch"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Show Line Numbers"
+            android:textColor="@color/on_surface"
+            android:layout_marginTop="16dp" />
+        
+        <com.google.android.material.switch.MaterialSwitch
+            android:id="@+id/autoIndentSwitch"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Auto Indent"
+            android:textColor="@color/on_surface"
+            android:layout_marginTop="8dp" />
+        
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/saveButton"
+            android:layout_width="match_parent"
+            android:layout_height="@dimen/button_height"
+            android:text="Save Settings"
+            android:layout_marginTop="24dp" />
+    </LinearLayout>
+    
+    <TextView
+        android:id="@+id/aboutText"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:textColor="@color/on_surface_variant"
+        android:textSize="14sp"
+        android:padding="16dp"
+        app:layout_constraintBottom_toBottomOf="parent">
+        Arduino Mobile Workshop
+Version 0.1.0
+
+An Android-first development environment for Arduino and microcontroller boards.
+    </TextView>
+</androidx.constraintlayout.widget.ConstraintLayout>
