@@ -19,7 +19,6 @@ android {
     
     signingConfigs {
         release {
-            // TODO: Add signing config for release builds
         }
     }
     
@@ -45,7 +44,6 @@ android {
     
     buildFeatures {
         viewBinding = true
-        compose = false
     }
     
     packaging {
@@ -61,11 +59,7 @@ dependencies {
     implementation("androidx.appcompat:appcompat:1.6.1")
     implementation("com.google.android.material:material:1.11.0")
     implementation("androidx.constraintlayout:constraintlayout:2.1.4")
-    
-    // Navigation Components
-    implementation("androidx.navigation:navigation-fragment-ktx:2.7.7")
-    implementation("androidx.navigation:navigation-ui-ktx:2.7.7")
-    implementation("androidx.navigation:navigation-dynamic-features-fragment:2.7.7")
+    implementation("androidx.gridlayout:gridlayout:1.0.0")
     
     // USB Serial
     implementation("com.hoho.android:usb-serial:1.2.0")
@@ -85,6 +79,9 @@ dependencies {
     
     // Preferences
     implementation("androidx.preference:preference-ktx:1.2.1")
+    
+    // RecyclerView
+    implementation("androidx.recyclerview:recyclerview:1.3.2")
     
     // File picker library
     implementation("com.github.angads25:filepicker:1.0.6")
