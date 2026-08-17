@@ -1,29 +1,72 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Arduino Mobile Workshop</string>
-    <string name="action_new">New</string>
-    <string name="action_open">Open</string>
-    <string name="action_save">Save</string>
-    <string name="action_save_as">Save As</string>
-    <string name="action_verify">Verify</string>
-    <string name="action_upload">Upload</string>
-    <string name="action_serial_monitor">Serial Monitor</string>
-    <string name="action_boards_manager">Boards Manager</string>
-    <string name="action_library_manager">Library Manager</string>
     <string name="action_settings">Settings</string>
-    <string name="serial_monitor_title">Serial Monitor</string>
-    <string name="boards_manager_title">Boards Manager</string>
-    <string name="library_manager_title">Library Manager</string>
-    <string name="settings_title">Settings</string>
-    <string name="file_picker_title">Select Sketch</string>
-    <string name="msg_compile_success">Compilation successful!</string>
-    <string name="msg_compile_failed">Compilation failed</string>
-    <string name="msg_upload_success">Upload successful!</string>
-    <string name="msg_upload_failed">Upload failed</string>
-    <string name="msg_no_board_selected">No board selected</string>
-    <string name="msg_no_port_selected">No port selected</string>
-    <string name="msg_saving">Saving...</string>
-    <string name="msg_loading">Loading...</string>
-    <string name="msg_no_usb_devices">No USB devices found</string>
-    <string name="msg_usb_permission_required">USB permission required</string>
+    
+    <!-- Main Activity -->
+    <string name="title_activity_main">Arduino Mobile Workshop</string>
+    
+    <!-- Serial Monitor -->
+    <string name="title_activity_serial_monitor">Serial Monitor</string>
+    <string name="serial_monitor_baud_rate">Baud Rate</string>
+    <string name="serial_monitor_data">Data</string>
+    <string name="serial_monitor_send">Send</string>
+    <string name="serial_monitor_clear">Clear</string>
+    <string name="serial_monitor_autoscroll">Auto-scroll</string>
+    
+    <!-- Boards Manager -->
+    <string name="title_activity_boards_manager">Boards Manager</string>
+    <string name="boards_manager_install">Install</string>
+    <string name="boards_manager_uninstall">Uninstall</string>
+    
+    <!-- Library Manager -->
+    <string name="title_activity_library_manager">Library Manager</string>
+    <string name="library_manager_install">Install</string>
+    <string name="library_manager_uninstall">Uninstall</string>
+    
+    <!-- Settings -->
+    <string name="title_activity_settings">Settings</string>
+    <string name="settings_sketch_location">Sketch Location</string>
+    <string name="settings_theme">Theme</string>
+    <string name="settings_language">Language</string>
+    
+    <!-- File Picker -->
+    <string name="title_activity_file_picker">File Picker</string>
+    
+    <!-- Menu Items -->
+    <string name="menu_new">New</string>
+    <string name="menu_open">Open</string>
+    <string name="menu_save">Save</string>
+    <string name="menu_verify">Verify/Compile</string>
+    <string name="menu_upload">Upload</string>
+    <string name="menu_serial_monitor">Serial Monitor</string>
+    <string name="menu_boards_manager">Boards Manager</string>
+    <string name="menu_library_manager">Library Manager</string>
+    <string name="menu_settings">Settings</string>
+    <string name="menu_logic_analyzer">Logic Analyzer</string>
+    <string name="menu_multi_programmer">Multi-Programmer</string>
+    
+    <!-- USB -->
+    <string name="usb_device_connected">USB Device Connected</string>
+    <string name="usb_device_disconnected">USB Device Disconnected</string>
+    
+    <!-- Logic Analyzer -->
+    <string name="logic_analyzer_title">Logic Analyzer</string>
+    <string name="logic_analyzer_start">Start Capture</string>
+    <string name="logic_analyzer_stop">Stop Capture</string>
+    <string name="logic_analyzer_trigger">Trigger</string>
+    <string name="logic_analyzer_channels">Channels</string>
+    <string name="logic_analyzer_sample_rate">Sample Rate</string>
+    
+    <!-- Multi-Programmer -->
+    <string name="multi_programmer_title">Multi-Programmer</string>
+    <string name="multi_programmer_mode">Programmer Mode</string>
+    <string name="multi_programmer_rp2040">RP2040</string>
+    <string name="multi_programmer_configure">Configure</string>
+    <string name="multi_programmer_program">Program</string>
+    
+    <!-- RP2040 -->
+    <string name="rp2040_uf2_bootloader">UF2 Bootloader</string>
+    <string name="rp2040_direct_serial">Direct Serial</string>
+    <string name="rp2040_logic_analyzer_mode">Logic Analyzer Mode</string>
 </resources>
