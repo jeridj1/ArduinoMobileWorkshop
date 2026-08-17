@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
+    
+    <item
+        android:id="@+id/action_new"
+        android:icon="@android:drawable/ic_menu_add"
+        android:title="@string/menu_new"
+        app:showAsAction="ifRoom"/>
+    
+    <item
+        android:id="@+id/action_open"
+        android:icon="@android:drawable/ic_menu_open"
+        android:title="@string/menu_open"
+        app:showAsAction="ifRoom"/>
+    
+    <item
+        android:id="@+id/action_save"
+        android:icon="@android:drawable/ic_menu_save"
+        android:title="@string/menu_save"
+        app:showAsAction="ifRoom"/>
+    
+    <item
+        android:id="@+id/action_verify"
+        android:icon="@android:drawable/ic_menu_compass"
+        android:title="@string/menu_verify"
+        app:showAsAction="never"/>
+    
+    <item
+        android:id="@+id/action_upload"
+        android:icon="@android:drawable/ic_menu_upload"
+        android:title="@string/menu_upload"
+        app:showAsAction="ifRoom"/>
+    
+    <item
+        android:id="@+id/action_serial_monitor"
+        android:title="@string/menu_serial_monitor"
+        app:showAsAction="never"/>
+    
+    <item
+        android:id="@+id/action_boards_manager"
+        android:title="@string/menu_boards_manager"
+        app:showAsAction="never"/>
+    
+    <item
+        android:id="@+id/action_library_manager"
+        android:title="@string/menu_library_manager"
+        app:showAsAction="never"/>
+    
+    <item
+        android:id="@+id/action_settings"
+        android:title="@string/menu_settings"
+        app:showAsAction="never"/>
+    
+    <item
+        android:id="@+id/action_logic_analyzer"
+        android:icon="@drawable/ic_logic_analyzer"
+        android:title="@string/menu_logic_analyzer"
+        app:showAsAction="ifRoom"/>
+    
+    <item
+        android:id="@+id/action_multi_programmer"
+        android:icon="@drawable/ic_multi_programmer"
+        android:title="@string/menu_multi_programmer"
+        app:showAsAction="ifRoom"/>
+</menu>
