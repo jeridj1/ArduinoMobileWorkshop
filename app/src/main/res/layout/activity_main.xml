@@ -5,169 +5,123 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@color/background_dark"
+    android:padding="16dp"
     tools:context=".ui.MainActivity">
     
     <androidx.appcompat.widget.Toolbar
         android:id="@+id/toolbar"
         android:layout_width="match_parent"
-        android:layout_height="@dimen/toolbar_height"
-        android:background="@color/surface_dark"
+        android:layout_height="?attr/actionBarSize"
+        android:background="?attr/colorPrimary"
         android:elevation="4dp"
-        app:layout_constraintTop_toTopOf="parent">
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Arduino Mobile Workshop"
-            android:textColor="@color/on_surface"
-            android:textSize="18sp"
-            android:textStyle="bold" />
-    </androidx.appcompat.widget.Toolbar>
-    
-    <LinearLayout
-        android:id="@+id/selectorBar"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:background="@color/surface_variant_dark"
-        android:padding="8dp"
-        app:layout_constraintTop_toBottomOf="@id/toolbar">
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/boardSelector"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:text="Select Board"
-            android:textAllCaps="false"
-            android:textColor="@color/on_surface" />
-        <View android:layout_width="1dp" android:layout_height="match_parent" android:background="@color/on_surface_variant" />
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/portSelector"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:text="No Port"
-            android:textAllCaps="false"
-            android:textColor="@color/on_surface" />
-    </LinearLayout>
-    
-    <androidx.constraintlayout.widget.ConstraintLayout
-        android:id="@+id/mainContent"
-        android:layout_width="match_parent"
-        android:layout_height="0dp"
-        android:background="@color/editor_background"
-        app:layout_constraintTop_toBottomOf="@id/selectorBar"
-        app:layout_constraintBottom_toTopOf="@id/actionButtons">
-        
-        <androidx.core.widget.NestedScrollView
-            android:id="@+id/lineNumbers"
-            android:layout_width="@dimen/line_number_width"
-            android:layout_height="match_parent"
-            android:background="@color/surface_dark"
-            app:layout_constraintStart_toStartOf="parent">
-            <TextView
-                android:id="@+id/lineNumbersText"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:text="1"
-                android:textColor="@color/line_number"
-                android:textSize="@dimen/editor_text_size"
-                android:fontFamily="monospace"
-                android:padding="8dp"
-                android:textAlignment="textEnd" />
-        </androidx.core.widget.NestedScrollView>
-        
-        <androidx.core.widget.NestedScrollView
-            android:id="@+id/editorScroll"
-            android:layout_width="0dp"
-            android:layout_height="match_parent"
-            app:layout_constraintStart_toEndOf="@id/lineNumbers"
-            app:layout_constraintEnd_toStartOf="@id/panelDivider">
-            <EditText
-                android:id="@+id/editor"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:inputType="textMultiLine|textNoSuggestions"
-                android:textColor="@color/editor_text"
-                android:textSize="@dimen/editor_text_size"
-                android:fontFamily="monospace"
-                android:background="@android:color/transparent"
-                android:padding="16dp"
-                android:minHeight="match_parent" />
-        </androidx.core.widget.NestedScrollView>
-        
-        <View
-            android:id="@+id/panelDivider"
-            android:layout_width="1dp"
-            android:layout_height="match_parent"
-            android:background="@color/on_surface_variant"
-            app:layout_constraintStart_toEndOf="@id/editorScroll"
-            app:layout_constraintEnd_toStartOf="@id/panelContainer" />
-        
-        <FrameLayout
-            android:id="@+id/panelContainer"
-            android:layout_width="0dp"
-            android:layout_height="match_parent"
-            android:background="@color/surface_dark"
-            app:layout_constraintWidth_percent="0.3"
-            app:layout_constraintStart_toEndOf="@id/panelDivider"
-            app:layout_constraintEnd_toEndOf="parent">
-            <androidx.core.widget.NestedScrollView
-                android:id="@+id/compileOutputPanel"
-                android:layout_width="match_parent"
-                android:layout_height="match_parent"
-                android:visibility="gone"
-                android:padding="16dp">
-                <TextView
-                    android:id="@+id/compileOutput"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:textColor="@color/editor_text"
-                    android:textSize="12sp"
-                    android:fontFamily="monospace" />
-            </androidx.core.widget.NestedScrollView>
-        </FrameLayout>
-    </androidx.constraintlayout.widget.ConstraintLayout>
-    
-    <LinearLayout
-        android:id="@+id/actionButtons"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:background="@color/surface_variant_dark"
-        android:padding="8dp"
-        app:layout_constraintBottom_toTopOf="@id/statusBar">
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/buttonCompile"
-            android:layout_width="0dp"
-            android:layout_height="@dimen/button_height"
-            android:layout_weight="1"
-            android:text="Verify"
-            android:textAllCaps="false" />
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/buttonUpload"
-            android:layout_width="0dp"
-            android:layout_height="@dimen/button_height"
-            android:layout_weight="1"
-            android:text="Upload"
-            android:textAllCaps="false" />
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/buttonSerialMonitor"
-            android:layout_width="0dp"
-            android:layout_height="@dimen/button_height"
-            android:layout_weight="1"
-            android:text="Serial Monitor"
-            android:textAllCaps="false" />
-    </LinearLayout>
+        android:theme="@style/ThemeOverlay.AppCompat.Dark.ActionBar"
+        app:layout_constraintLeft_toLeftOf="parent"
+        app:layout_constraintRight_toRightOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
     
     <TextView
-        android:id="@+id/statusBar"
+        android:id="@+id/welcome_text"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="16dp"
+        android:text="Arduino Mobile Workshop"
+        android:textSize="24sp"
+        android:textStyle="bold"
+        app:layout_constraintLeft_toLeftOf="parent"
+        app:layout_constraintRight_toRightOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/toolbar" />
+    
+    <TextView
+        android:id="@+id/description_text"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:text="Select a feature to get started"
+        android:textSize="16sp"
+        app:layout_constraintLeft_toLeftOf="parent"
+        app:layout_constraintRight_toRightOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/welcome_text" />
+    
+    <GridLayout
+        android:id="@+id/features_grid"
         android:layout_width="match_parent"
-        android:layout_height="@dimen/status_bar_height"
-        android:background="@color/arduino_blue"
-        android:textColor="@color/on_surface"
-        android:textSize="12sp"
-        android:paddingHorizontal="16dp"
-        android:text="Ready"
-        app:layout_constraintBottom_toBottomOf="parent" />
+        android:layout_height="wrap_content"
+        android:layout_marginTop="32dp"
+        android:columnCount="2"
+        android:rowCount="4"
+        app:layout_constraintLeft_toLeftOf="parent"
+        app:layout_constraintRight_toRightOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/description_text">
+        
+        <Button
+            android:id="@+id/btn_serial_monitor"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_columnWeight="1"
+            android:layout_gravity="fill"
+            android:layout_margin="8dp"
+            android:text="Serial Monitor"
+            android:textAllCaps="false" />
+        
+        <Button
+            android:id="@+id/btn_boards_manager"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_columnWeight="1"
+            android:layout_gravity="fill"
+            android:layout_margin="8dp"
+            android:text="Boards Manager"
+            android:textAllCaps="false" />
+        
+        <Button
+            android:id="@+id/btn_library_manager"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_columnWeight="1"
+            android:layout_gravity="fill"
+            android:layout_margin="8dp"
+            android:text="Library Manager"
+            android:textAllCaps="false" />
+        
+        <Button
+            android:id="@+id/btn_settings"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_columnWeight="1"
+            android:layout_gravity="fill"
+            android:layout_margin="8dp"
+            android:text="Settings"
+            android:textAllCaps="false" />
+        
+        <Button
+            android:id="@+id/btn_file_picker"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_columnWeight="1"
+            android:layout_gravity="fill"
+            android:layout_margin="8dp"
+            android:text="File Picker"
+            android:textAllCaps="false" />
+        
+        <Button
+            android:id="@+id/btn_logic_analyzer"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_columnWeight="1"
+            android:layout_gravity="fill"
+            android:layout_margin="8dp"
+            android:text="Logic Analyzer"
+            android:textAllCaps="false" />
+        
+        <Button
+            android:id="@+id/btn_multi_programmer"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_columnWeight="1"
+            android:layout_gravity="fill"
+            android:layout_margin="8dp"
+            android:text="Multi-Programmer"
+            android:textAllCaps="false" />
+    </GridLayout>
+    
 </androidx.constraintlayout.widget.ConstraintLayout>
