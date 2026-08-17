@@ -7,29 +7,13 @@ import android.view.MenuItem
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.widget.Toolbar
-import androidx.drawerlayout.widget.DrawerLayout
-import androidx.navigation.findNavController
-import androidx.navigation.ui.AppBarConfiguration
-import androidx.navigation.ui.setupActionBarWithNavController
-import androidx.navigation.ui.setupWithNavController
-import com.google.android.material.navigation.NavigationView
+import com.arduinomobileworkshop.app.R
 
 /**
  * Main Activity for Arduino Mobile Workshop
- * Provides navigation to all major features:
- * - Serial Monitor
- * - Boards Manager
- * - Library Manager
- * - Settings
- * - File Picker
- * - Logic Analyzer
- * - Multi-Programmer
+ * Provides navigation to all major features
  */
 class MainActivity : AppCompatActivity() {
-    
-    private lateinit var appBarConfiguration: AppBarConfiguration
-    private lateinit var drawerLayout: DrawerLayout
-    private lateinit var navigationView: NavigationView
     
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -39,61 +23,33 @@ class MainActivity : AppCompatActivity() {
         val toolbar: Toolbar = findViewById(R.id.toolbar)
         setSupportActionBar(toolbar)
         
-        // Setup navigation drawer
-        drawerLayout = findViewById(R.id.drawer_layout)
-        navigationView = findViewById(R.id.nav_view)
+        // Set up button click listeners for quick access
+        findViewById<android.widget.Button>(R.id.btn_serial_monitor)?.setOnClickListener {
+            startActivity(Intent(this, SerialMonitorActivity::class.java))
+        }
         
-        val navController = findNavController(R.id.nav_host_fragment)
+        findViewById<android.widget.Button>(R.id.btn_boards_manager)?.setOnClickListener {
+            startActivity(Intent(this, BoardsManagerActivity::class.java))
+        }
         
-        appBarConfiguration = AppBarConfiguration(
-            setOf(
-                R.id.nav_serial_monitor,
-                R.id.nav_boards_manager,
-                R.id.nav_library_manager,
-                R.id.nav_settings,
-                R.id.nav_file_picker,
-                R.id.nav_logic_analyzer,
-                R.id.nav_multi_programmer
-            ),
-            drawerLayout
-        )
+        findViewById<android.widget.Button>(R.id.btn_library_manager)?.setOnClickListener {
+            startActivity(Intent(this, LibraryManagerActivity::class.java))
+        }
         
-        setupActionBarWithNavController(navController, appBarConfiguration)
-        navigationView.setupWithNavController(navController)
+        findViewById<android.widget.Button>(R.id.btn_settings)?.setOnClickListener {
+            startActivity(Intent(this, SettingsActivity::class.java))
+        }
         
-        // Handle navigation item clicks
-        navigationView.setNavigationItemSelectedListener { menuItem ->
-            when (menuItem.itemId) {
-                R.id.nav_serial_monitor -> {
-                    startActivity(Intent(this, SerialMonitorActivity::class.java))
-                    true
-                }
-                R.id.nav_boards_manager -> {
-                    startActivity(Intent(this, BoardsManagerActivity::class.java))
-                    true
-                }
-                R.id.nav_library_manager -> {
-                    startActivity(Intent(this, LibraryManagerActivity::class.java))
-                    true
-                }
-                R.id.nav_settings -> {
-                    startActivity(Intent(this, SettingsActivity::class.java))
-                    true
-                }
-                R.id.nav_file_picker -> {
-                    startActivity(Intent(this, FilePickerActivity::class.java))
-                    true
-                }
-                R.id.nav_logic_analyzer -> {
-                    startActivity(Intent(this, LogicAnalyzerActivity::class.java))
-                    true
-                }
-                R.id.nav_multi_programmer -> {
-                    startActivity(Intent(this, MultiProgrammerActivity::class.java))
-                    true
-                }
-                else -> false
-            }
+        findViewById<android.widget.Button>(R.id.btn_file_picker)?.setOnClickListener {
+            startActivity(Intent(this, FilePickerActivity::class.java))
+        }
+        
+        findViewById<android.widget.Button>(R.id.btn_logic_analyzer)?.setOnClickListener {
+            startActivity(Intent(this, LogicAnalyzerActivity::class.java))
+        }
+        
+        findViewById<android.widget.Button>(R.id.btn_multi_programmer)?.setOnClickListener {
+            startActivity(Intent(this, MultiProgrammerActivity::class.java))
         }
     }
     
@@ -150,10 +106,5 @@ class MainActivity : AppCompatActivity() {
             }
             else -> super.onOptionsItemSelected(item)
         }
-    }
-    
-    override fun onSupportNavigateUp(): Boolean {
-        val navController = findNavController(R.id.nav_host_fragment)
-        return navController.navigateUp(appBarConfiguration) || super.onSupportNavigateUp()
     }
 }
