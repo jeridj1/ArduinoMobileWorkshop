@@ -1,0 +1,174 @@
+package com.arduinomobileworkshop.rp2040.services
+
+import android.app.Service
+import android.content.Intent
+import android.os.Binder
+import android.os.IBinder
+import com.arduinomobileworkshop.rp2040.RP2040Manager
+import com.arduinomobileworkshop.usb.UsbSerialManager
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import java.io.File
+
+class RP2040ProgrammerService : Service() {
+    
+    private val binder = LocalBinder()
+    private lateinit var rp2040Manager: RP2040Manager
+    private lateinit var usbSerialManager: UsbSerialManager
+    private val serviceJob = Job()
+    private val serviceScope = CoroutineScope(Dispatchers.Main + serviceJob)
+    
+    private var isProgramming = false
+    private var programmingProgress = 0
+    private var currentFile: File? = null
+    private var programmingCallback: ((Int, String) -> Unit)? = null
+    
+    inner class LocalBinder : Binder() {
+        fun getService(): RP2040ProgrammerService = this@RP2040ProgrammerService
+    }
+    
+    override fun onCreate() {
+        super.onCreate()
+        usbSerialManager = UsbSerialManager(this)
+        rp2040Manager = RP2040Manager(
+            getSystemService(USB_SERVICE) as android.hardware.usb.UsbManager,
+            usbSerialManager
+        )
+    }
+    
+    override fun onBind(intent: Intent?): IBinder {
+        return binder
+    }
+    
+    override fun onDestroy() {
+        super.onDestroy()
+        serviceJob.cancel()
+        cancelProgramming()
+    }
+    
+    fun programFile(file: File, callback: (Int, String) -> Unit) {
+        if (isProgramming) {
+            callback(0, "Already programming")
+            return
+        }
+        
+        currentFile = file
+        programmingCallback = callback
+        
+        serviceScope.launch {
+            try {
+                isProgramming = true
+                programmingProgress = 0
+                
+                val uf2Data = withContext(Dispatchers.IO) {
+                    file.readBytes()
+                }
+                
+                if (!rp2040Manager.isInBootloader()) {
+                    callback(0, "Device not in bootloader mode")
+                    isProgramming = false
+                    return@launch
+                }
+                
+                callback(0, "Starting programming...")
+                
+                val success = rp2040Manager.programFirmware(uf2Data)
+                
+                if (success) {
+                    programmingProgress = 100
+                    callback(100, "Programming complete!")
+                } else {
+                    callback(0, "Programming failed")
+                }
+                
+                isProgramming = false
+                currentFile = null
+                
+            } catch (ex: Exception) {
+                callback(0, "Error: " + ex.message)
+                isProgramming = false
+                currentFile = null
+            }
+        }
+    }
+    
+    fun programMultipleDevices(files: Map<File, String>, callback: (Int, String, String?) -> Unit) {
+        if (isProgramming) {
+            callback(0, "Already programming", null)
+            return
+        }
+        
+        serviceScope.launch {
+            try {
+                isProgramming = true
+                val totalFiles = files.size
+                
+                files.forEachIndexed { index, (file, deviceId) ->
+                    try {
+                        val progress = ((index + 1) * 100 / totalFiles)
+                        callback(progress, "Programming device " + deviceId, deviceId)
+                        Thread.sleep(1000)
+                    } catch (ex: Exception) {
+                        callback(0, "Failed to program " + deviceId + ": " + ex.message, deviceId)
+                    }
+                }
+                
+                callback(100, "All devices programmed", null)
+                isProgramming = false
+                
+            } catch (ex: Exception) {
+                callback(0, "Error: " + ex.message, null)
+                isProgramming = false
+            }
+        }
+    }
+    
+    fun cancelProgramming() {
+        isProgramming = false
+        currentFile = null
+        programmingCallback = null
+        programmingProgress = 0
+        
+        serviceScope.launch {
+            usbSerialManager.closeConnection()
+        }
+    }
+    
+    fun getProgrammingStatus(): Map<String, Any> {
+        return mapOf(
+            "is_programming" to isProgramming,
+            "progress" to programmingProgress,
+            "current_file" to (currentFile?.name ?: "N/A")
+        )
+    }
+    
+    fun enterBootloaderMode(callback: (Boolean, String) -> Unit) {
+        serviceScope.launch {
+            try {
+                val success = rp2040Manager.enterBootloaderMode()
+                callback(success, if (success) "Entered bootloader mode" else "Failed to enter bootloader mode")
+            } catch (ex: Exception) {
+                callback(false, "Error: " + ex.message)
+            }
+        }
+    }
+    
+    fun verifyUf2File(file: File): Boolean {
+        return try {
+            val bytes = file.readBytes()
+            if (bytes.size < 32) return false
+            
+            val magicStart = (bytes[0].toInt() and 0xFF) or
+                           ((bytes[1].toInt() and 0xFF) shl 8) or
+                           ((bytes[2].toInt() and 0xFF) shl 16) or
+                           ((bytes[3].toInt() and 0xFF) shl 24)
+            
+            magicStart == RP2040Manager.UF2_MAGIC_START
+        } catch (ex: Exception) {
+            false
+        }
+    }
+}
