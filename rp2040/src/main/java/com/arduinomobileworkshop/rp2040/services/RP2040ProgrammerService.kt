@@ -95,37 +95,6 @@ class RP2040ProgrammerService : Service() {
         }
     }
     
-    fun programMultipleDevices(files: Map<File, String>, callback: (Int, String, String?) -> Unit) {
-        if (isProgramming) {
-            callback(0, "Already programming", null)
-            return
-        }
-        
-        serviceScope.launch {
-            try {
-                isProgramming = true
-                val totalFiles = files.size
-                
-                files.forEachIndexed { index, (file, deviceId) ->
-                    try {
-                        val progress = ((index + 1) * 100 / totalFiles)
-                        callback(progress, "Programming device " + deviceId, deviceId)
-                        Thread.sleep(1000)
-                    } catch (ex: Exception) {
-                        callback(0, "Failed to program " + deviceId + ": " + ex.message, deviceId)
-                    }
-                }
-                
-                callback(100, "All devices programmed", null)
-                isProgramming = false
-                
-            } catch (ex: Exception) {
-                callback(0, "Error: " + ex.message, null)
-                isProgramming = false
-            }
-        }
-    }
-    
     fun cancelProgramming() {
         isProgramming = false
         currentFile = null
