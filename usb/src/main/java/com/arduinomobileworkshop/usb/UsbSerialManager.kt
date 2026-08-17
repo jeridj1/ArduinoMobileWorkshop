@@ -8,9 +8,6 @@ import com.hoho.android.usbserial.driver.UsbSerialPort
 import com.hoho.android.usbserial.driver.UsbSerialProber
 import java.io.IOException
 
-/**
- * Manages USB serial connections for Arduino devices
- */
 class UsbSerialManager(private val context: Context) {
     
     private var usbManager: UsbManager
@@ -22,20 +19,14 @@ class UsbSerialManager(private val context: Context) {
         usbManager = context.getSystemService(Context.USB_SERVICE) as UsbManager
     }
     
-    /**
-     * Open connection to a USB device
-     */
     fun openConnection(device: UsbDevice): Boolean {
         return try {
-            // Check if we already have a connection
             if (isConnected && connectedDevice == device) {
                 return true
             }
             
-            // Close existing connection
             closeConnection()
             
-            // Find the serial driver for this device
             val prober = UsbSerialProber.getDefaultProber()
             val driver: UsbSerialDriver? = prober.probeDevice(device)
             
@@ -43,11 +34,9 @@ class UsbSerialManager(private val context: Context) {
                 return false
             }
             
-            // Get the first available port
             usbSerialPort = driver.ports[0]
             connectedDevice = device
             
-            // Open the connection
             usbSerialPort?.open(usbManager)
             usbSerialPort?.setParameters(115200, 8, UsbSerialPort.STOPBITS_1, UsbSerialPort.PARITY_NONE)
             
@@ -58,9 +47,6 @@ class UsbSerialManager(private val context: Context) {
         }
     }
     
-    /**
-     * Close current USB connection
-     */
     fun closeConnection() {
         try {
             usbSerialPort?.close()
@@ -68,13 +54,9 @@ class UsbSerialManager(private val context: Context) {
             connectedDevice = null
             isConnected = false
         } catch (e: IOException) {
-            // Ignore
         }
     }
     
-    /**
-     * Write data to the USB serial port
-     */
     fun writeData(data: ByteArray): Boolean {
         return try {
             if (!isConnected || usbSerialPort == null) {
@@ -87,9 +69,6 @@ class UsbSerialManager(private val context: Context) {
         }
     }
     
-    /**
-     * Read data from the USB serial port
-     */
     fun readData(buffer: ByteArray, timeout: Int): Int {
         return try {
             if (!isConnected || usbSerialPort == null) {
@@ -101,9 +80,6 @@ class UsbSerialManager(private val context: Context) {
         }
     }
     
-    /**
-     * Get list of available USB serial devices
-     */
     fun getAvailableDevices(): List<UsbDevice> {
         val devices = mutableListOf<UsbDevice>()
         val deviceList = usbManager.deviceList
@@ -119,19 +95,10 @@ class UsbSerialManager(private val context: Context) {
         return devices
     }
     
-    /**
-     * Check if currently connected
-     */
     fun isConnected(): Boolean = isConnected
     
-    /**
-     * Get connected device
-     */
     fun getConnectedDevice(): UsbDevice? = connectedDevice
     
-    /**
-     * Set baud rate
-     */
     fun setBaudRate(baudRate: Int): Boolean {
         return try {
             if (!isConnected || usbSerialPort == null) {
