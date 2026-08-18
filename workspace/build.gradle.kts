@@ -19,7 +19,7 @@ jobs:
         java-version: '17'
         distribution: 'temurin'
 
-    - name: Build with Gradle
+    - name: Build with Gradle (use installed Gradle, not repo wrapper)
       uses: gradle/gradle-build-action@v3
       with:
         wrapper-enabled: false
