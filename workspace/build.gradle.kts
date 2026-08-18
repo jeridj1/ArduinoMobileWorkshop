@@ -1,28 +1,34 @@
-plugins {
-    id("com.android.library")
-    id("org.jetbrains.kotlin.android")
-}
+name: Android CI
 
-android {
-    namespace = "com.arduinomobileworkshop.workspace"
-    compileSdk = 34
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
 
-    defaultConfig {
-        minSdk = 24
-        targetSdk = 34
-    }
+jobs:
+  build:
+    runs-on: ubuntu-latest
 
-    compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_1_8
-        targetCompatibility = JavaVersion.VERSION_1_8
-    }
+    steps:
+    - uses: actions/checkout@v4
 
-    kotlinOptions {
-        jvmTarget = "1.8"
-    }
-}
+    - name: Set up JDK 17
+      uses: actions/setup-java@v4
+      with:
+        java-version: '17'
+        distribution: 'temurin'
 
-dependencies {
-    implementation("androidx.core:core-ktx:1.12.0")
-    implementation(project(":toolchain"))
-}
+    - name: Build with Gradle
+      uses: gradle/gradle-build-action@v3
+      with:
+        wrapper-enabled: false
+        gradle-version: '8.6'
+        arguments: assembleDebug --stacktrace --no-daemon
+
+    - name: Upload APK
+      uses: actions/upload-artifact@v4
+      if: success()
+      with:
+        name: ArduinoMobileWorkshop
+        path: app/build/outputs/apk/debug/app-debug.apk
