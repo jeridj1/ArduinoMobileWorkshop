@@ -7,11 +7,8 @@ plugins {
 }
 
 allprojects {
-    repositories {
-        google()
-        mavenCentral()
-        maven { url = uri("https://jitpack.io") }
-    }
+    // Repositories are now declared in settings.gradle.kts
+    // Removed: repositories block to comply with Gradle 8.6+ requirements
 }
 
 tasks.register<Delete>("clean") {
