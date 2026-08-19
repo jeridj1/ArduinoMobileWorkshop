@@ -45,10 +45,15 @@ class UsbSerialManager(private val context: Context) {
         connectedDevice = null
     }
 
-    fun writeData(data: ByteArray): Boolean = try {
-        usbSerialPort?.write(data, 1000) ?: return false
-        true
-    } catch (_: Exception) { false }
+    fun writeData(data: ByteArray): Boolean {
+        return try {
+            val port = usbSerialPort ?: return false
+            port.write(data, 1000)
+            true
+        } catch (_: Exception) {
+            false
+        }
+    }
 
     fun readData(buffer: ByteArray, timeout: Int): Int = try {
         usbSerialPort?.read(buffer, timeout) ?: -1
@@ -62,8 +67,13 @@ class UsbSerialManager(private val context: Context) {
     fun getConnectedDevice(): UsbDevice? = connectedDevice
     fun getUsbSerialPort(): UsbSerialPort? = usbSerialPort
 
-    fun setBaudRate(baudRate: Int): Boolean = try {
-        usbSerialPort?.setParameters(baudRate, 8, UsbSerialPort.STOPBITS_1, UsbSerialPort.PARITY_NONE) ?: return false
-        true
-    } catch (_: Exception) { false }
+    fun setBaudRate(baudRate: Int): Boolean {
+        return try {
+            val port = usbSerialPort ?: return false
+            port.setParameters(baudRate, 8, UsbSerialPort.STOPBITS_1, UsbSerialPort.PARITY_NONE)
+            true
+        } catch (_: Exception) {
+            false
+        }
+    }
 }
