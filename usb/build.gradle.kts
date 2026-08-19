@@ -24,5 +24,6 @@ android {
 
 dependencies {
     implementation("androidx.core:core-ktx:1.12.0")
-    implementation("com.hoho.android:usb-serial:1.2.0")
+    // Use working usb-serial library from jitpack
+    implementation("com.github.felHR85:UsbSerial:6.0.0")
 }
