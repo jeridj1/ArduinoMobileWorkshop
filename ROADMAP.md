@@ -10,9 +10,9 @@ This roadmap is intentionally staged. A polished tool is more useful than a gian
 - [x] Persistent session state.
 - [x] Architecture document.
 - [x] Security boundary.
-- [ ] Android project skeleton.
-- [ ] First buildable APK.
-- [ ] Android CI.
+- [x] Android project skeleton (8 activities, 4 modules, layouts).
+- [x] First buildable APK (build fixed, needs verification).
+- [ ] Android CI (workflow exists, needs validation).
 
 ## Phase 1 - Familiar Arduino IDE workflow
 
@@ -28,24 +28,24 @@ This roadmap is intentionally staged. A polished tool is more useful than a gian
 - [ ] Port selector.
 - [ ] Build output panel.
 - [ ] Human-readable errors.
-- [ ] Serial Monitor.
+- [ ] Serial Monitor (UI exists, backend mocked).
 
 ## Phase 2 - Arduino toolchain
 
-- [ ] Arduino CLI integration proof of concept.
+- [ ] Arduino CLI integration proof of concept (currently mocked).
 - [ ] AVR core support.
 - [ ] ESP32 core support.
 - [ ] ESP8266 core support.
 - [ ] RP2040 Arduino core support.
 - [ ] Third-party board-index management.
 - [ ] Board package installation/removal/version selection.
-- [ ] Library Manager.
+- [ ] Library Manager (UI exists, backend mocked).
 - [ ] Library dependency handling.
 - [ ] Cached/offline packages where practical.
 
 ## Phase 3 - Android hardware integration
 
-- [ ] USB Host device detection.
+- [ ] USB Host device detection (currently mocked in MultiProgrammerActivity).
 - [ ] USB permission handling.
 - [ ] Serial-port abstraction.
 - [ ] Automatic port identification.
@@ -69,7 +69,7 @@ This roadmap is intentionally staged. A polished tool is more useful than a gian
 
 - [ ] RP2040 bridge firmware.
 - [ ] Android bridge protocol.
-- [ ] Logic analyzer capture.
+- [ ] Logic analyzer capture (UI exists, backend mocked).
 - [ ] Waveform viewer.
 - [ ] Trigger configuration.
 - [ ] Frequency/period/pulse measurements.

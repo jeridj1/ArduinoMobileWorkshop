@@ -49,11 +49,10 @@ dependencies {
     // Coroutines
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
     
-    // Temporarily comment out modules that have dependency issues
-    // implementation(project(":toolchain"))
-    // implementation(project(":workspace"))
-    // implementation(project(":usb"))
-    // implementation(project(":rp2040"))
+    implementation(project(":toolchain"))
+    implementation(project(":workspace"))
+    implementation(project(":usb"))
+    implementation(project(":rp2040"))
     
     testImplementation("junit:junit:4.13.2")
 }
