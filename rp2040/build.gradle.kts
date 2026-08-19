@@ -5,11 +5,11 @@ plugins {
 
 android {
     namespace = "com.arduinomobileworkshop.rp2040"
-    compileSdk = 34
+    compileSdk = 35
 
     defaultConfig {
         minSdk = 24
-        targetSdk = 34
+        targetSdk = 35
     }
 
     compileOptions {
