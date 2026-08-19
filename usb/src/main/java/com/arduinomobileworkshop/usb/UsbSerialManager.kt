@@ -18,11 +18,9 @@ class UsbSerialManager(private val context: Context) {
     fun openConnection(device: UsbDevice): Boolean {
         if (connectedDevice == device && usbSerialPort != null && usbConnection != null) return true
         closeConnection()
-
         val driver: UsbSerialDriver = UsbSerialProber.getDefaultProber().probeDevice(device) ?: return false
         val port = driver.ports.firstOrNull() ?: return false
         val connection = usbManager.openDevice(device) ?: return false
-
         return try {
             port.open(connection)
             port.setParameters(115200, 8, UsbSerialPort.STOPBITS_1, UsbSerialPort.PARITY_NONE)
@@ -46,18 +44,17 @@ class UsbSerialManager(private val context: Context) {
     }
 
     fun writeData(data: ByteArray): Boolean {
+        val port = usbSerialPort ?: return false
         return try {
-            val port = usbSerialPort ?: return false
             port.write(data, 1000)
             true
-        } catch (_: Exception) {
-            false
-        }
+        } catch (_: Exception) { false }
     }
 
-    fun readData(buffer: ByteArray, timeout: Int): Int = try {
-        usbSerialPort?.read(buffer, timeout) ?: -1
-    } catch (_: Exception) { -1 }
+    fun readData(buffer: ByteArray, timeout: Int): Int {
+        val port = usbSerialPort ?: return -1
+        return try { port.read(buffer, timeout) } catch (_: Exception) { -1 }
+    }
 
     fun getAvailableDevices(): List<UsbDevice> = usbManager.deviceList.values.filter {
         UsbSerialProber.getDefaultProber().probeDevice(it) != null
@@ -68,12 +65,10 @@ class UsbSerialManager(private val context: Context) {
     fun getUsbSerialPort(): UsbSerialPort? = usbSerialPort
 
     fun setBaudRate(baudRate: Int): Boolean {
+        val port = usbSerialPort ?: return false
         return try {
-            val port = usbSerialPort ?: return false
             port.setParameters(baudRate, 8, UsbSerialPort.STOPBITS_1, UsbSerialPort.PARITY_NONE)
             true
-        } catch (_: Exception) {
-            false
-        }
+        } catch (_: Exception) { false }
     }
 }
