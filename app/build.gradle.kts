@@ -45,15 +45,12 @@ dependencies {
     implementation("androidx.constraintlayout:constraintlayout:2.1.4")
     implementation("androidx.gridlayout:gridlayout:1.0.0")
     implementation("androidx.recyclerview:recyclerview:1.3.2")
-    
-    // Coroutines
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
-    
-    // Temporarily comment out modules that have dependency issues
-    // implementation(project(":toolchain"))
-    // implementation(project(":workspace"))
-    // implementation(project(":usb"))
-    // implementation(project(":rp2040"))
-    
+
+    implementation(project(":toolchain"))
+    implementation(project(":workspace"))
+    implementation(project(":usb"))
+    implementation(project(":rp2040"))
+
     testImplementation("junit:junit:4.13.2")
 }
