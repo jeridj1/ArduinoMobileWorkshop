@@ -2,8 +2,6 @@ package com.arduinomobileworkshop.app.ui
 
 import android.content.Context
 import android.os.Bundle
-import android.os.Handler
-import android.os.Looper
 import android.view.inputmethod.InputMethodManager
 import android.widget.ArrayAdapter
 import android.widget.Toast
@@ -11,15 +9,19 @@ import androidx.appcompat.app.AppCompatActivity
 import com.arduinomobileworkshop.app.ArduinoMobileWorkshopApp
 import com.arduinomobileworkshop.app.databinding.ActivitySerialMonitorBinding
 import com.arduinomobileworkshop.usb.UsbManager
+import java.util.concurrent.ExecutorService
+import java.util.concurrent.Executors
+import java.util.concurrent.Future
 
 class SerialMonitorActivity : AppCompatActivity() {
     private lateinit var binding: ActivitySerialMonitorBinding
     private val usbManager: UsbManager
         get() = ArduinoMobileWorkshopApp.instance.usbManager
     private var currentDevice: android.hardware.usb.UsbDevice? = null
-    private var isConnected = false
+    @Volatile private var isConnected = false
     private var isAutoScroll = true
-    private val handler = Handler(Looper.getMainLooper())
+    private val readExecutor: ExecutorService = Executors.newSingleThreadExecutor()
+    private var readTask: Future<*>? = null
     private val baudRates = arrayOf(300, 600, 1200, 2400, 4800, 9600, 14400, 19200, 28800, 38400, 57600, 115200, 230400, 250000, 460800, 500000, 921600)
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -77,29 +79,46 @@ class SerialMonitorActivity : AppCompatActivity() {
         isConnected = true
         updateUiState()
         appendOutput("Connected to ${currentDevice!!.deviceName} at $baudRate baud\n")
-        startReadPolling()
+        startReadLoop()
         showToast("Connected")
     }
 
     private fun disconnect() {
+        isConnected = false
+        readTask?.cancel(true)
+        readTask = null
         currentDevice?.let { usbManager.disconnectFromDevice(it) }
         currentDevice = null
-        isConnected = false
-        handler.removeCallbacksAndMessages(null)
         updateUiState()
         appendOutput("Disconnected\n")
     }
 
-    private fun startReadPolling() {
-        handler.post(object : Runnable {
-            override fun run() {
-                if (!isConnected) return
-                val buffer = ByteArray(4096)
-                val count = usbManager.readData(buffer, 25)
-                if (count > 0) appendOutput(String(buffer, 0, count, Charsets.UTF_8))
-                handler.postDelayed(this, 50)
+    private fun startReadLoop() {
+        readTask?.cancel(true)
+        readTask = readExecutor.submit {
+            val buffer = ByteArray(4096)
+            while (isConnected && !Thread.currentThread().isInterrupted) {
+                try {
+                    val count = usbManager.readData(buffer, 100)
+                    if (count > 0) {
+                        val text = String(buffer, 0, count, Charsets.UTF_8)
+                        runOnUiThread {
+                            if (!isFinishing && !isDestroyed) appendOutput(text)
+                        }
+                    }
+                } catch (_: Exception) {
+                    if (isConnected) {
+                        runOnUiThread {
+                            if (!isFinishing && !isDestroyed) {
+                                showToast("Serial read error")
+                                disconnect()
+                            }
+                        }
+                    }
+                    break
+                }
             }
-        })
+        }
     }
 
     private fun sendData() {
@@ -148,6 +167,7 @@ class SerialMonitorActivity : AppCompatActivity() {
 
     override fun onDestroy() {
         disconnect()
+        readExecutor.shutdownNow()
         super.onDestroy()
     }
 }
