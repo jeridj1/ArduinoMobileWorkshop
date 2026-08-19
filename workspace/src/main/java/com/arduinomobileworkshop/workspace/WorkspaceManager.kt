@@ -14,15 +14,6 @@ class WorkspaceManager(private val context: Context) {
     private var isInitialized = false
     private val projects: MutableList<SketchProject> = mutableListOf()
 
-    data class SketchProject(
-        val id: String,
-        val name: String,
-        val path: String,
-        val createdAt: Long,
-        val modifiedAt: Long,
-        val mainFile: String
-    )
-
     fun initialize() {
         if (isInitialized) return
         try {
@@ -43,9 +34,18 @@ class WorkspaceManager(private val context: Context) {
         if (!dir.exists()) return
         dir.listFiles()?.forEach { file ->
             if (file.isDirectory) {
-                val inoFile = File(file, file.name + ".ino")
+                val inoFile = File(file, "${file.name}.ino")
                 if (inoFile.exists()) {
-                    projects.add(SketchProject(file.name + "_" + file.path.hashCode(), file.name, file.absolutePath, file.lastModified(), inoFile.lastModified(), inoFile.absolutePath))
+                    projects.add(
+                        SketchProject(
+                            "${file.name}_${file.path.hashCode()}",
+                            file.name,
+                            file.absolutePath,
+                            file.lastModified(),
+                            inoFile.lastModified(),
+                            inoFile.absolutePath
+                        )
+                    )
                 }
             }
         }
@@ -64,7 +64,14 @@ class WorkspaceManager(private val context: Context) {
             val inoFile = File(projectDir, "$sanitizedName.ino")
             inoFile.writeText("void setup(){}\nvoid loop(){}")
             val now = System.currentTimeMillis()
-            val project = SketchProject(sanitizedName + "_" + projectDir.path.hashCode(), sanitizedName, projectDir.absolutePath, now, now, inoFile.absolutePath)
+            val project = SketchProject(
+                "${sanitizedName}_${projectDir.path.hashCode()}",
+                sanitizedName,
+                projectDir.absolutePath,
+                now,
+                now,
+                inoFile.absolutePath
+            )
             projects.add(project)
             project
         } catch (e: Exception) {
@@ -92,11 +99,13 @@ class WorkspaceManager(private val context: Context) {
             val deleted = File(project.path).deleteRecursively()
             if (deleted) projects.remove(project)
             deleted
-        } catch (e: Exception) {
+        } catch (_: Exception) {
             false
         }
     }
 
-    fun deleteSketch(name: String): Boolean = projects.find { it.name == name }?.let { deleteProject(it.id) } ?: false
+    fun deleteSketch(name: String): Boolean =
+        projects.find { it.name == name }?.let { deleteProject(it.id) } ?: false
+
     fun isInitialized(): Boolean = isInitialized
 }
