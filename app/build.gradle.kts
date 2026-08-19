@@ -46,8 +46,8 @@ dependencies {
     implementation("androidx.gridlayout:gridlayout:1.0.0")
     implementation("androidx.recyclerview:recyclerview:1.3.2")
     
-    // USB Serial
-    implementation("com.hoho.android:usb-serial:1.2.0")
+    // USB Serial - using working jitpack dependency
+    implementation("com.github.mik3y:usb-serial-for-android:3.6.0")
     
     // Coroutines
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
