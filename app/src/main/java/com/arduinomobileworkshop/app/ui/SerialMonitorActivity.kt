@@ -10,7 +10,6 @@ import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import com.arduinomobileworkshop.app.ArduinoMobileWorkshopApp
 import com.arduinomobileworkshop.app.databinding.ActivitySerialMonitorBinding
-import com.arduinomobileworkshop.usb.UsbDeviceInfo
 import com.arduinomobileworkshop.usb.UsbManager
 
 class SerialMonitorActivity : AppCompatActivity() {
@@ -58,11 +57,10 @@ class SerialMonitorActivity : AppCompatActivity() {
 
     private fun connect() {
         usbManager.scanForDevices()
-        val deviceInfo: UsbDeviceInfo = usbManager.getAvailableDevices()
-            .firstOrNull { it.driver != null } ?: run {
-                showToast("No serial devices found")
-                return
-            }
+        val deviceInfo = usbManager.getAvailableDevices().firstOrNull { it.driver != null } ?: run {
+            showToast("No serial devices found")
+            return
+        }
         currentDevice = deviceInfo.device
         val baudRate = getSelectedBaudRate()
         if (!usbManager.connectToDevice(currentDevice!!)) {
