@@ -2,7 +2,7 @@ name: Android CI
 
 on:
   push:
-    branches: [ main ]
+    branches: [ main, 'agent/**' ]
   pull_request:
     branches: [ main ]
   workflow_dispatch:
@@ -13,6 +13,8 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
 
       - name: Set up JDK 17
         uses: actions/setup-java@v4
@@ -20,13 +22,8 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
 
-      - name: Set up Gradle 8.6
-        uses: gradle/actions/setup-gradle@v4
-        with:
-          gradle-version: '8.6'
-
-      - name: Build debug APK
-        run: gradle assembleDebug --stacktrace --no-daemon
+      - name: Build debug APK with Gradle wrapper
+        run: bash ./gradlew assembleDebug --stacktrace --no-daemon
 
       - name: Verify APK exists
         run: test -f app/build/outputs/apk/debug/app-debug.apk
