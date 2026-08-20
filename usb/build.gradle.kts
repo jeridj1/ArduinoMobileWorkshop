@@ -9,7 +9,6 @@ android {
 
     defaultConfig {
         minSdk = 24
-        targetSdk = 35
     }
 
     compileOptions {
@@ -18,7 +17,9 @@ android {
     }
 
     kotlinOptions {
-        jvmTarget = "17"
+        compilerOptions {
+            jvmTarget.set(JvmTarget.JVM_17)
+        }
     }
 }
 
