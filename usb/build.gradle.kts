@@ -5,11 +5,11 @@ plugins {
 
 android {
     namespace = "com.arduinomobileworkshop.usb"
-    compileSdk = 34
+    compileSdk = 35
 
     defaultConfig {
         minSdk = 24
-        targetSdk = 34
+        targetSdk = 35
     }
 
     compileOptions {
@@ -24,5 +24,5 @@ android {
 
 dependencies {
     implementation("androidx.core:core-ktx:1.12.0")
-    implementation("com.github.mik3y:usb-serial-for-android:3.10.0")
+    implementation("com.github.mik3y:usb-serial-for-android:3.11.0")
 }
