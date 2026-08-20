@@ -24,5 +24,5 @@ android {
 
 dependencies {
     implementation("androidx.core:core-ktx:1.12.0")
-    implementation("com.github.mik3y:usb-serial-for-android:3.11.0")
+    implementation("com.github.mik3y:usb-serial-for-android:3.10.0")
 }
