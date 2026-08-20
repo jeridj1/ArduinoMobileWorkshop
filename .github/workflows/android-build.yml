@@ -25,6 +25,9 @@ jobs:
         with:
           gradle-version: '8.6'
 
+      - name: Make gradlew executable
+        run: chmod +x ./gradlew
+
       - name: Build debug APK
         run: ./gradlew assembleDebug --stacktrace --no-daemon
 
