@@ -5,11 +5,11 @@ plugins {
 
 android {
     namespace = "com.arduinomobileworkshop.workspace"
-    compileSdk = 35
+    compileSdk = 34
 
     defaultConfig {
         minSdk = 24
-        targetSdk = 35
+        targetSdk = 34
     }
 
     compileOptions {
