@@ -30,9 +30,7 @@ android {
     }
 
     kotlinOptions {
-        compilerOptions {
-            jvmTarget.set(JvmTarget.JVM_17)
-        }
+        jvmTarget = "17"
     }
 
     buildFeatures {
