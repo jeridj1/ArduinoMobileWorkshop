@@ -12,15 +12,12 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.ArduinoMobileWorkshop">
 
-        <activity
-            android:name=".ui.MainActivity"
-            android:exported="true">
+        <activity android:name=".ui.MainActivity" android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
-
         <activity android:name=".ui.SerialMonitorActivity" android:exported="false" />
         <activity android:name=".ui.BoardsManagerActivity" android:exported="false" />
         <activity android:name=".ui.LibraryManagerActivity" android:exported="false" />
@@ -29,12 +26,11 @@
         <activity android:name=".ui.LogicAnalyzerActivity" android:exported="false" />
         <activity android:name=".ui.MultiProgrammerActivity" android:exported="false" />
 
-        <receiver
-            android:name=".usb.UsbDeviceReceiver"
-            android:exported="false">
+        <receiver android:name=".usb.UsbDeviceReceiver" android:exported="false">
             <intent-filter>
                 <action android:name="android.hardware.usb.action.USB_DEVICE_ATTACHED" />
                 <action android:name="android.hardware.usb.action.USB_DEVICE_DETACHED" />
+                <action android:name="com.arduinomobileworkshop.USB_PERMISSION" />
             </intent-filter>
         </receiver>
     </application>
