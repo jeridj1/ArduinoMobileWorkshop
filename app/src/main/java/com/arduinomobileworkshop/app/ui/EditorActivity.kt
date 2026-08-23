@@ -27,19 +27,13 @@ class EditorActivity : AppCompatActivity() {
         binding.boardSpinner.adapter = ArrayAdapter(this, android.R.layout.simple_spinner_item, boards).also {
             it.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
         }
-
         val requestedPath = intent.getStringExtra(FilePickerActivity.EXTRA_FILE_PATH)
         project = requestedPath?.let { path -> workspace.listProjects().firstOrNull { it.path == path } }
             ?: workspace.listProjects().firstOrNull()
-
         if (project == null) project = workspace.createProject("MySketch")
         loadProject()
-
         binding.saveButton.setOnClickListener { saveProject() }
-        binding.newButton.setOnClickListener {
-            project = workspace.createProject("Sketch_${System.currentTimeMillis()}")
-            loadProject()
-        }
+        binding.newButton.setOnClickListener { project = workspace.createProject("Sketch_${System.currentTimeMillis()}"); loadProject() }
         binding.compileButton.setOnClickListener { compileProject() }
         binding.uploadButton.setOnClickListener { uploadProject() }
     }
@@ -74,8 +68,6 @@ class EditorActivity : AppCompatActivity() {
         saveProject()
         val current = project ?: return
         val board = toolchain.getAvailableBoards().getOrNull(binding.boardSpinner.selectedItemPosition) ?: return
-        val devices = ArduinoMobileWorkshopApp.instance.usbManager.getSerialDevices()
-        val port = devices.firstOrNull()?.let { ArduinoMobileWorkshopApp.instance.usbManager.androidUsbManager.getDeviceList() }
         binding.output.text = "Uploading ${current.name}..."
         Thread {
             val result = toolchain.getCliManager().run("upload", "--fqbn", board.id, current.path, timeoutSeconds = 300)
