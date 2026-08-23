@@ -2,7 +2,7 @@ name: Android CI
 
 on:
   push:
-    branches: [ main, 'agent/**', 'vibe/**' ]
+    branches: [ main, 'agent/**', 'vibe/**', 'integration/**' ]
   pull_request:
     branches: [ main ]
   workflow_dispatch:
