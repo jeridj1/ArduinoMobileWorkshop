@@ -6,6 +6,7 @@
     <application
         android:name=".ArduinoMobileWorkshopApp"
         android:allowBackup="true"
+        android:extractNativeLibs="true"
         android:label="@string/app_name"
         android:supportsRtl="true"
         android:theme="@style/Theme.ArduinoMobileWorkshop">
