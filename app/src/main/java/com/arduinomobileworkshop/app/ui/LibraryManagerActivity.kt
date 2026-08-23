@@ -1,7 +1,6 @@
 package com.arduinomobileworkshop.app.ui
 
 import android.os.Bundle
-import android.util.Log
 import android.widget.ArrayAdapter
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
@@ -15,7 +14,7 @@ class LibraryManagerActivity : AppCompatActivity() {
     private val toolchainManager: ToolchainManager
         get() = ArduinoMobileWorkshopApp.instance.toolchainManager
     private lateinit var libraryAdapter: ArrayAdapter<Library>
-    
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = ActivityLibraryManagerBinding.inflate(layoutInflater)
@@ -25,7 +24,7 @@ class LibraryManagerActivity : AppCompatActivity() {
         initializeUi()
         loadLibraries()
     }
-    
+
     private fun initializeUi() {
         libraryAdapter = ArrayAdapter(this, android.R.layout.simple_list_item_2, android.R.id.text1)
         binding.librariesListView.adapter = libraryAdapter
@@ -33,41 +32,67 @@ class LibraryManagerActivity : AppCompatActivity() {
             libraryAdapter.getItem(position)?.let { showLibraryDetails(it) }
         }
         binding.refreshButton.setOnClickListener { loadLibraries() }
-        binding.installButton.setOnClickListener { showInstallDialog() }
+        binding.installButton.setOnClickListener { prepareToolchainAndInstall() }
     }
-    
+
     private fun loadLibraries() {
         val libraries = toolchainManager.getInstalledLibraries()
-        runOnUiThread {
-            libraryAdapter.clear()
-            libraryAdapter.addAll(libraries)
-            libraryAdapter.notifyDataSetChanged()
-            binding.emptyMessage.visibility = if (libraries.isEmpty()) android.view.View.VISIBLE else android.view.View.GONE
-        }
+        libraryAdapter.clear()
+        libraryAdapter.addAll(libraries)
+        libraryAdapter.notifyDataSetChanged()
+        binding.emptyMessage.visibility = if (libraries.isEmpty()) android.view.View.VISIBLE else android.view.View.GONE
     }
-    
+
     private fun showLibraryDetails(library: Library) {
         android.app.AlertDialog.Builder(this)
             .setTitle(library.name)
             .setMessage("Version: ${library.version}\nAuthor: ${library.author}\nDescription: ${library.description}")
-            .setPositiveButton("OK") { _, _ -> }
+            .setPositiveButton("OK", null)
             .show()
     }
-    
+
+    private fun prepareToolchainAndInstall() {
+        if (!toolchainManager.isArduinoCliAvailable()) {
+            showToast("Installing Arduino CLI…")
+            toolchainManager.installArduinoCli { success, message ->
+                runOnUiThread {
+                    if (success) {
+                        showToast("Arduino CLI ready")
+                        showInstallDialog()
+                    } else showToast("Arduino CLI failed: $message")
+                }
+            }
+        } else showInstallDialog()
+    }
+
     private fun showInstallDialog() {
-        val libraries = listOf("FastLED", "Adafruit GFX", "Adafruit BusIO", "OneWire", "DallasTemperature")
+        val libraries = arrayOf(
+            "FastLED" to "FastLED",
+            "Adafruit GFX Library" to "Adafruit GFX Library",
+            "Adafruit BusIO" to "Adafruit BusIO",
+            "OneWire" to "OneWire",
+            "DallasTemperature" to "DallasTemperature"
+        )
         android.app.AlertDialog.Builder(this)
             .setTitle("Install Library")
-            .setItems(libraries.toTypedArray()) { _, which ->
-                showToast("Installing: ${libraries[which]}")
-                toolchainManager.installLibrary("", { success, _ ->
-                    runOnUiThread { if (success) { showToast("Library installed"); loadLibraries() } else showToast("Failed") }
-                })
+            .setItems(libraries.map { it.first }.toTypedArray()) { _, which ->
+                val libraryId = libraries[which].second
+                showToast("Installing ${libraries[which].first}…")
+                toolchainManager.installLibrary(libraryId) { success, message ->
+                    runOnUiThread {
+                        showToast(if (success) "Installed" else "Failed: $message")
+                        if (success) loadLibraries()
+                    }
+                }
             }
-            .setNegativeButton("Cancel") { _, _ -> }
+            .setNegativeButton("Cancel", null)
             .show()
     }
-    
+
     private fun showToast(message: String) = Toast.makeText(this, message, Toast.LENGTH_SHORT).show()
-    override fun onSupportNavigateUp(): Boolean { onBackPressedDispatcher.onBackPressed(); return true }
+
+    override fun onSupportNavigateUp(): Boolean {
+        onBackPressedDispatcher.onBackPressed()
+        return true
+    }
 }
