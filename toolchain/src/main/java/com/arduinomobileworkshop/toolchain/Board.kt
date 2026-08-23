@@ -8,5 +8,6 @@ data class Board(
     val version: String,
     val architecture: String,
     val uploadTool: String,
-    val programmer: String
+    val programmer: String,
+    val fqbn: String = ""
 )
