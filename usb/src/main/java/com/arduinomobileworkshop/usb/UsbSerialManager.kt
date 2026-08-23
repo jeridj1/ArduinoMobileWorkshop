@@ -1,6 +1,8 @@
 package com.arduinomobileworkshop.usb
 
+import android.app.PendingIntent
 import android.content.Context
+import android.content.Intent
 import android.hardware.usb.UsbDevice
 import android.hardware.usb.UsbDeviceConnection
 import android.hardware.usb.UsbManager
@@ -10,12 +12,26 @@ import com.hoho.android.usbserial.driver.UsbSerialProber
 import java.io.IOException
 
 class UsbSerialManager(private val context: Context) {
+    companion object {
+        const val ACTION_USB_PERMISSION = "com.arduinomobileworkshop.USB_PERMISSION"
+    }
+
     private val usbManager = context.getSystemService(Context.USB_SERVICE) as UsbManager
     private var usbConnection: UsbDeviceConnection? = null
     private var usbSerialPort: UsbSerialPort? = null
     private var connectedDevice: UsbDevice? = null
 
+    fun hasPermission(device: UsbDevice): Boolean = usbManager.hasPermission(device)
+
+    fun requestPermission(device: UsbDevice) {
+        if (usbManager.hasPermission(device)) return
+        val intent = Intent(ACTION_USB_PERMISSION).setPackage(context.packageName)
+        val flags = PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        usbManager.requestPermission(device, PendingIntent.getBroadcast(context, device.deviceId, intent, flags))
+    }
+
     fun openConnection(device: UsbDevice): Boolean {
+        if (!usbManager.hasPermission(device)) return false
         if (connectedDevice == device && usbSerialPort != null && usbConnection != null) return true
         closeConnection()
         val driver: UsbSerialDriver = UsbSerialProber.getDefaultProber().probeDevice(device) ?: return false
