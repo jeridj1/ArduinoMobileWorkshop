@@ -15,8 +15,7 @@ import java.util.concurrent.Future
 
 class SerialMonitorActivity : AppCompatActivity() {
     private lateinit var binding: ActivitySerialMonitorBinding
-    private val usbManager: UsbManager
-        get() = ArduinoMobileWorkshopApp.instance.usbManager
+    private val usbManager: UsbManager get() = ArduinoMobileWorkshopApp.instance.usbManager
     private var currentDevice: android.hardware.usb.UsbDevice? = null
     @Volatile private var isConnected = false
     private var isAutoScroll = true
@@ -40,8 +39,7 @@ class SerialMonitorActivity : AppCompatActivity() {
         binding.baudRateSpinner.adapter = baudAdapter
         binding.baudRateSpinner.setSelection(baudRates.indexOf(9600))
         binding.autoScrollSwitch.isChecked = true
-        val newlineOptions = arrayOf("\\n (LF)", "\\r (CR)", "\\r\\n (CRLF)", "None")
-        val newlineAdapter = ArrayAdapter(this, android.R.layout.simple_spinner_item, newlineOptions)
+        val newlineAdapter = ArrayAdapter(this, android.R.layout.simple_spinner_item, arrayOf("\\n (LF)", "\\r (CR)", "\\r\\n (CRLF)", "None"))
         newlineAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
         binding.newlineSpinner.adapter = newlineAdapter
         updateUiState()
@@ -64,6 +62,11 @@ class SerialMonitorActivity : AppCompatActivity() {
             return
         }
         currentDevice = deviceInfo.device
+        if (!usbManager.hasPermission(currentDevice!!)) {
+            usbManager.requestPermission(currentDevice!!)
+            showToast("USB permission requested")
+            return
+        }
         val baudRate = getSelectedBaudRate()
         if (!usbManager.connectToDevice(currentDevice!!)) {
             showToast("Unable to open USB serial device")
@@ -80,7 +83,6 @@ class SerialMonitorActivity : AppCompatActivity() {
         updateUiState()
         appendOutput("Connected to ${currentDevice!!.deviceName} at $baudRate baud\n")
         startReadLoop()
-        showToast("Connected")
     }
 
     private fun disconnect() {
@@ -90,7 +92,7 @@ class SerialMonitorActivity : AppCompatActivity() {
         currentDevice?.let { usbManager.disconnectFromDevice(it) }
         currentDevice = null
         updateUiState()
-        appendOutput("Disconnected\n")
+        if (binding.serialOutput.text.isNotEmpty()) appendOutput("Disconnected\n")
     }
 
     private fun startReadLoop() {
@@ -98,24 +100,10 @@ class SerialMonitorActivity : AppCompatActivity() {
         readTask = readExecutor.submit {
             val buffer = ByteArray(4096)
             while (isConnected && !Thread.currentThread().isInterrupted) {
-                try {
-                    val count = usbManager.readData(buffer, 100)
-                    if (count > 0) {
-                        val text = String(buffer, 0, count, Charsets.UTF_8)
-                        runOnUiThread {
-                            if (!isFinishing && !isDestroyed) appendOutput(text)
-                        }
-                    }
-                } catch (_: Exception) {
-                    if (isConnected) {
-                        runOnUiThread {
-                            if (!isFinishing && !isDestroyed) {
-                                showToast("Serial read error")
-                                disconnect()
-                            }
-                        }
-                    }
-                    break
+                val count = usbManager.readData(buffer, 100)
+                if (count > 0) {
+                    val text = String(buffer, 0, count, Charsets.UTF_8)
+                    runOnUiThread { if (!isFinishing && !isDestroyed) appendOutput(text) }
                 }
             }
         }
@@ -125,12 +113,7 @@ class SerialMonitorActivity : AppCompatActivity() {
         if (!isConnected) { showToast("Not connected"); return }
         val text = binding.inputField.text.toString()
         if (text.isBlank()) return
-        val newline = when (binding.newlineSpinner.selectedItemPosition) {
-            0 -> "\n"
-            1 -> "\r"
-            2 -> "\r\n"
-            else -> ""
-        }
+        val newline = when (binding.newlineSpinner.selectedItemPosition) { 0 -> "\n"; 1 -> "\r"; 2 -> "\r\n"; else -> "" }
         if (usbManager.writeString(text + newline)) {
             appendOutput(">> $text$newline")
             binding.inputField.text?.clear()
@@ -160,10 +143,7 @@ class SerialMonitorActivity : AppCompatActivity() {
 
     private fun showToast(message: String) = Toast.makeText(this, message, Toast.LENGTH_SHORT).show()
 
-    override fun onSupportNavigateUp(): Boolean {
-        onBackPressedDispatcher.onBackPressed()
-        return true
-    }
+    override fun onSupportNavigateUp(): Boolean { onBackPressedDispatcher.onBackPressed(); return true }
 
     override fun onDestroy() {
         disconnect()
