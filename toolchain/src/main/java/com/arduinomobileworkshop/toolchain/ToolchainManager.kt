@@ -7,7 +7,6 @@ import java.io.BufferedReader
 import java.io.File
 import java.io.FileOutputStream
 import java.io.InputStream
-import java.io.InputStreamReader
 import java.net.HttpURLConnection
 import java.net.URL
 import java.util.concurrent.Executors
@@ -19,6 +18,7 @@ class ToolchainManager(private val context: Context) {
         private const val TOOLCHAIN_DIR = "arduino-toolchain"
         private const val CLI_NAME = "arduino-cli"
         private const val ESP32_INDEX = "https://espressif.github.io/arduino-esp32/package_esp32_index.json"
+        private const val ESP8266_INDEX = "https://arduino.esp8266.com/stable/package_esp8266com_index.json"
         private const val RP2040_INDEX = "https://github.com/earlephilhower/arduino-pico/releases/download/global/package_rp2040_index.json"
     }
 
@@ -44,13 +44,13 @@ class ToolchainManager(private val context: Context) {
 
     private fun initializeDefaultBoards() {
         availableBoards.clear()
-        availableBoards += Board("arduino_uno", "Arduino Uno", "avr", "arduino-avr", "1.8.6", "avr", "avrdude", "arduino", "arduino:avr:uno")
-        availableBoards += Board("arduino_nano", "Arduino Nano", "avr", "arduino-avr", "1.8.6", "avr", "avrdude", "arduino", "arduino:avr:nano")
-        availableBoards += Board("arduino_mega", "Arduino Mega 2560", "avr", "arduino-avr", "1.8.6", "avr", "avrdude", "arduino", "arduino:avr:mega")
-        availableBoards += Board("esp32_dev", "ESP32 Dev Module", "esp32", "esp32", "latest", "xtensa", "esptool", "esp32", "esp32:esp32:esp32")
-        availableBoards += Board("raspberry_pi_pico", "Raspberry Pi Pico", "rp2040", "rp2040", "latest", "arm", "picotool", "uf2", "rp2040:rp2040:rpipico")
-        availableBoards += Board("adafruit_feather_rp2040", "Adafruit Feather RP2040", "rp2040", "rp2040", "latest", "arm", "picotool", "uf2", "rp2040:rp2040:adafruit_feather")
-        availableBoards += Board("sparkfun_pro_micro_rp2040", "SparkFun Pro Micro RP2040", "rp2040", "rp2040", "latest", "arm", "picotool", "uf2", "rp2040:rp2040:promicro")
+        availableBoards += Board("arduino_uno", "Arduino Uno", "avr", "arduino:avr", "1.8.6", "avr", "avrdude", "arduino", "arduino:avr:uno")
+        availableBoards += Board("arduino_nano", "Arduino Nano", "avr", "arduino:avr", "1.8.6", "avr", "avrdude", "arduino", "arduino:avr:nano")
+        availableBoards += Board("arduino_mega", "Arduino Mega 2560", "avr", "arduino:avr", "1.8.6", "avr", "avrdude", "arduino", "arduino:avr:mega")
+        availableBoards += Board("esp32_dev", "ESP32 Dev Module", "esp32", "esp32:esp32", "latest", "xtensa", "esptool", "esp32", "esp32:esp32:esp32")
+        availableBoards += Board("raspberry_pi_pico", "Raspberry Pi Pico", "rp2040", "rp2040:rp2040", "latest", "arm", "picotool", "uf2", "rp2040:rp2040:rpipico")
+        availableBoards += Board("adafruit_feather_rp2040", "Adafruit Feather RP2040", "rp2040", "rp2040:rp2040", "latest", "arm", "picotool", "uf2", "rp2040:rp2040:adafruit_feather")
+        availableBoards += Board("sparkfun_pro_micro_rp2040", "SparkFun Pro Micro RP2040", "rp2040", "rp2040:rp2040", "latest", "arm", "picotool", "uf2", "rp2040:rp2040:promicro")
     }
 
     private fun initializeDefaultLibraries() {
@@ -68,8 +68,7 @@ class ToolchainManager(private val context: Context) {
         return true
     }
 
-    fun removeBoardConfig(boardId: String): Boolean =
-        availableBoards.removeIf { it.id == boardId }
+    fun removeBoardConfig(boardId: String): Boolean = availableBoards.removeIf { it.id == boardId }
 
     fun getInstalledLibraries(): List<Library> = installedLibraries.toList()
     fun getLibrary(libraryId: String): Library? = installedLibraries.find { it.id == libraryId }
@@ -158,12 +157,12 @@ class ToolchainManager(private val context: Context) {
 
     private fun isCoreInstalled(board: Board): Boolean {
         if (!isArduinoCliAvailable()) return false
-        return runCli(listOf("core", "list")).stdout.lines().any { it.contains(board.packageName) }
+        return runCli(listOf("core", "list")).stdout.lines().any { it.trimStart().startsWith(board.packageName) }
     }
 
     private fun configureCli() {
         runCli(listOf("config", "init", "--overwrite"))
-        runCli(listOf("config", "set", "board_manager.additional_urls", "$ESP32_INDEX,$RP2040_INDEX"))
+        runCli(listOf("config", "set", "board_manager.additional_urls", "$ESP32_INDEX,$ESP8266_INDEX,$RP2040_INDEX"))
         runCli(listOf("core", "update-index"))
     }
 
@@ -185,8 +184,8 @@ class ToolchainManager(private val context: Context) {
                 .directory(toolchainDir)
                 .redirectErrorStream(false)
                 .start()
-            val stdout = process.inputStream.bufferedReader().use(BufferedReader::readText)
-            val stderr = process.errorStream.bufferedReader().use(BufferedReader::readText)
+            val stdout = process.inputStream.bufferedReader().use { it.readText() }
+            val stderr = process.errorStream.bufferedReader().use { it.readText() }
             CommandResult(process.waitFor(), stdout, stderr)
         } catch (e: Exception) {
             CommandResult(-1, "", e.message ?: "Failed to execute Arduino CLI")
