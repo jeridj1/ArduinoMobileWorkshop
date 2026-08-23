@@ -5,29 +5,17 @@ import java.io.File
 import java.util.concurrent.TimeUnit
 
 class ArduinoCliManager(private val context: Context) {
-    data class Result(val exitCode: Int, val output: String) {
-        val success: Boolean get() = exitCode == 0
-    }
-
-    private val executable = File(context.filesDir, "arduino-cli")
+    data class Result(val exitCode: Int, val output: String) { val success: Boolean get() = exitCode == 0 }
+    private val executable: File get() = File(context.applicationInfo.nativeLibraryDir, "libarduino_cli.so")
     private val configDir = File(context.filesDir, "arduino-cli")
 
     @Synchronized
-    fun ensureInstalled(): Boolean {
-        if (executable.exists() && executable.canExecute()) return true
-        return try {
-            configDir.mkdirs()
-            context.assets.open("arduino-cli").use { input -> executable.outputStream().use { input.copyTo(it) } }
-            executable.setExecutable(true, false)
-            executable.exists() && executable.canExecute()
-        } catch (_: Exception) {
-            false
-        }
-    }
+    fun ensureInstalled(): Boolean = executable.exists() && executable.canExecute()
 
     fun run(vararg args: String, timeoutSeconds: Long = 120): Result {
-        if (!ensureInstalled()) return Result(-1, "Arduino CLI is not bundled in this build.")
+        if (!ensureInstalled()) return Result(-1, "Android Arduino CLI is not present in this APK build.")
         return try {
+            configDir.mkdirs()
             val command = ArrayList<String>(args.size + 1)
             command.add(executable.absolutePath)
             command.addAll(args)
@@ -46,8 +34,6 @@ class ArduinoCliManager(private val context: Context) {
                 return Result(-1, "$output\nArduino CLI timed out.")
             }
             Result(process.exitValue(), output)
-        } catch (e: Exception) {
-            Result(-1, e.message ?: "Unable to run Arduino CLI")
-        }
+        } catch (e: Exception) { Result(-1, e.message ?: "Unable to run Arduino CLI") }
     }
 }
