@@ -4,95 +4,56 @@ This file is the persistent handoff point for humans and AI contributors.
 
 ## Status
 
-**Phase:** Project foundation / architecture  
-**Implementation:** Android project skeleton complete, build reconciliation in progress  
-**Last updated:** 2026-08-20
+**Phase:** Project foundation / build verification  
+**Implementation:** Android project skeleton exists; build-repair branch consolidated and under verification  
+**Last updated:** 2026-08-23
 
-## Completed
+## Completed in this repair pass
 
-- Public GitHub repository created.
-- Initial README established.
-- Comprehensive AI/developer handoff protocol added.
-- Decision made to target an Arduino-IDE-like Android experience rather than a generic serial-terminal app.
-- Decision made to keep the architecture modular so the toolchain can later be reused by OpenDeviceToolkit.
-- RP2040 multifunction hardware support identified as a major optional feature.
-- Public-project security boundary established: no automatic vulnerability/exploit/access-gaining features.
-- **Android project skeleton created:**
-  - 8 Activities: MainActivity, BoardsManagerActivity, LibraryManagerActivity, FilePickerActivity, SerialMonitorActivity, LogicAnalyzerActivity, MultiProgrammerActivity, SettingsActivity
-  - 4 Library modules: toolchain, workspace, usb, rp2040
-  - Layouts for all activities
-  - CI workflow configured
-- **Build issues fixed:**
-  - Fixed usb module dependency: changed from felHR85:UsbSerial to mik3y:usb-serial-for-android:3.11.0
-  - Restored app module dependencies: uncommented toolchain, workspace, usb, rp2040 project dependencies
-  - Removed insecure JitPack protocol setting from settings.gradle.kts
-  - Cleaned up debug files (BUILD_TRIGGER*, test_access.txt)
-  - Fixed Material Components version from non-existent 2.0.0 to 1.14.0
-  - Updated Android Gradle Plugin from 8.3.0 to 8.6.0 to support compileSdk 35
-  - Updated Gradle wrapper from 8.6 to 8.7 to support AGP 8.6.0
-  - Updated all modules to compileSdk 35 and targetSdk 35
+- Inspected the current repository and all eight branches.
+- Confirmed there are no repository forks currently listed.
+- Compared the major repair branches and identified `vibe/build-repair` as the strongest consolidated repair state.
+- Created dedicated repair branch `agent/ai-build-repair` from the known-good `vibe/build-repair` state.
+- Preserved `main`; no destructive changes were made to it.
+- Updated GitHub Actions Java setup from `actions/setup-java@v4` to `@v5`.
+- Replaced deprecated `rootProject.buildDir` usage with `rootProject.layout.buildDirectory`.
+- Opened draft PR #4 for isolated verification against `main`.
 
-## Not yet implemented
+## Build-repair baseline retained
 
-- Main IDE/editor screen.
-- Project/sketch storage.
-- Arduino CLI/toolchain integration (currently mocked).
-- Board package manager.
-- Library manager.
-- USB device discovery (currently mocked in MultiProgrammerActivity).
-- Serial monitor (UI exists but backend not fully implemented).
-- Compile pipeline (mocked in ToolchainManager).
-- Upload pipeline (mocked in ToolchainManager).
-- Human-friendly compiler diagnostics.
-- Board capability database.
-- RP2040 logic-analyzer firmware.
-- RP2040 programming/debug firmware.
-- Automated tests.
-- Android CI/build pipeline (workflow exists, needs validation on vibe/build-repair branch).
-- Release APK packaging.
+The repair baseline contains the previously completed fixes including:
 
-## Immediate next task
+- USB dependency changed to `com.github.mik3y:usb-serial-for-android:3.11.0`.
+- Complete app-to-module dependency graph restored.
+- Duplicate `SerialMonitorActivity` removed.
+- Cross-module model visibility/import problems repaired.
+- Serial reads moved away from the Android main thread with lifecycle cleanup.
+- Material Components set to `1.14.0`.
+- AGP set to `8.6.0`.
+- Gradle wrapper set to `8.7`.
+- Modules use compileSdk/targetSdk 35.
+- Debug trigger/access files removed.
+- Gradle wrapper and CI configuration retained.
 
-Verify the build compiles successfully on the `vibe/build-repair` branch, which reconciles `main` and `agent/full-build-repair`.
+## Verification status
 
-## Next contributor should
+GitHub reports no commit status checks for the current repair commit through the available GitHub integration, so the APK build has **not** been independently verified in this session.
 
-1. Read `HANDOFF.md`, `ARCHITECTURE.md`, `ROADMAP.md`, and `SECURITY.md`.
-2. Check out the `vibe/build-repair` branch which contains:
-   - All 35 fixes from `agent/full-build-repair`
-   - All legitimate changes from `main`
-   - Fixed Material Components version (1.14.0 instead of non-existent 2.0.0)
-   - Updated AGP to 8.6.0 and Gradle to 8.7
-   - Updated compileSdk/targetSdk to 35 for all modules
-3. Wait for CI to complete on `vibe/build-repair` branch (triggered by push)
-4. If build succeeds, merge `vibe/build-repair` into `main`
-5. Update this file with the exact build result
-6. Continue implementing actual toolchain functionality
+The local execution environment also cannot reach GitHub, so a local Gradle build could not be performed here.
 
-## Testing rule
+Do not claim the APK currently builds until an actual Gradle/CI run produces the APK.
 
-A feature is not considered complete until there is a reproducible test or a clearly documented hardware-dependent test procedure.
+## Known implementation gaps
 
-## Known unknowns
+The repository is still an application skeleton. `ToolchainManager` currently uses mocked behavior for compilation, upload, library installation, and board-package installation. USB discovery and portions of the serial-monitor backend are also incomplete. These are implementation tasks, not merely build errors.
 
-- Exact Android-native strategy for running Arduino CLI and its native toolchains.
-- Storage requirements for multiple board cores/toolchains.
-- USB host behavior across Android manufacturers.
-- Best implementation strategy for third-party board indexes.
-- RP2040 USB transport architecture and firmware partitioning.
-- Which target programming protocols should be included in the first RP2040 hardware release.
+## Current repair branch
 
-## Current Branch Status
+- Branch: `agent/ai-build-repair`
+- Base: `vibe/build-repair`
+- PR: #4, draft, targeting `main`
+- Latest repair commit: `d4492becb04adb452e45a773fbc36398f85c725b`
 
-- Branch: `vibe/build-repair`
-- Base: `agent/full-build-repair` (35 commits of fixes)
-- Merged changes from `main`:
-  - 62bbb37: Update compileSdk and targetSdk to 35
-  - 5464b40: Add build verification guide
-  - 5ebf109: Fix build issues and clean up repository
-- Additional fixes:
-  - Material Components: 1.11.0 → 1.14.0 (2.0.0 doesn't exist)
-  - usb-serial-for-android: 3.10.0 → 3.11.0
-  - AGP: 8.3.0 → 8.6.0
-  - Gradle: 8.6 → 8.7
-  - Kotlin: kept at 1.9.20 (mik3y library is Java-based)
+## Safest next action
+
+Run the Android CI build for PR #4 or otherwise execute `./gradlew assembleDebug` in an environment with JDK 17 and Android SDK API 35. If it fails, fix the actual compiler/dependency error on `agent/ai-build-repair`, then repeat until the APK is generated. After the build is verified, inspect runtime/lifecycle paths and begin replacing the remaining toolchain mocks with real Arduino CLI-backed functionality.
