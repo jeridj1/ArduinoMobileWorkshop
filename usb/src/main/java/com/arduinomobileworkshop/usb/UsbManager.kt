@@ -55,7 +55,6 @@ class UsbManager(private val context: Context) {
             for (device in androidUsbManager.deviceList.values) {
                 val driver = prober.probeDevice(device)
                 connectedDevices[device.deviceName] = UsbDeviceInfo(device, driver, null, false)
-                Log.d(TAG, "Found USB device: ${device.deviceName}")
             }
             notifyDeviceListeners()
         } catch (e: Exception) {
@@ -63,14 +62,23 @@ class UsbManager(private val context: Context) {
         }
     }
 
+    fun hasPermission(device: UsbDevice): Boolean = usbSerialManager.hasPermission(device)
+
+    fun requestPermission(device: UsbDevice) {
+        usbSerialManager.requestPermission(device)
+    }
+
     fun connectToDevice(device: UsbDevice): Boolean {
         return try {
             val deviceInfo = connectedDevices[device.deviceName] ?: return false
             if (deviceInfo.isConnected) return true
+            if (!usbSerialManager.hasPermission(device)) {
+                usbSerialManager.requestPermission(device)
+                return false
+            }
             val success = usbSerialManager.openConnection(device)
             if (success) {
                 deviceInfo.isConnected = true
-                Log.d(TAG, "Connected to: ${device.deviceName}")
                 notifyConnectionStateChanged(device, true)
             }
             success
@@ -93,6 +101,15 @@ class UsbManager(private val context: Context) {
         }
     }
 
+    fun onPermissionGranted(device: UsbDevice) {
+        connectedDevices[device.deviceName]?.let { info ->
+            if (usbSerialManager.openConnection(device)) {
+                info.isConnected = true
+                notifyConnectionStateChanged(device, true)
+            }
+        }
+    }
+
     fun getConnectedDevices(): List<UsbDeviceInfo> = connectedDevices.values.filter { it.isConnected }
     fun getAvailableDevices(): List<UsbDeviceInfo> = connectedDevices.values.toList()
     fun getDevice(deviceName: String): UsbDeviceInfo? = connectedDevices[deviceName]
@@ -110,19 +127,15 @@ class UsbManager(private val context: Context) {
 
     fun setBaudRate(baudRate: Int): Boolean = usbSerialManager.setBaudRate(baudRate)
 
-    fun setDtr(dtr: Boolean): Boolean {
-        return try {
-            usbSerialManager.getUsbSerialPort()?.dtr = dtr
-            true
-        } catch (_: Exception) { false }
-    }
+    fun setDtr(dtr: Boolean): Boolean = try {
+        usbSerialManager.getUsbSerialPort()?.dtr = dtr
+        true
+    } catch (_: Exception) { false }
 
-    fun setRts(rts: Boolean): Boolean {
-        return try {
-            usbSerialManager.getUsbSerialPort()?.rts = rts
-            true
-        } catch (_: Exception) { false }
-    }
+    fun setRts(rts: Boolean): Boolean = try {
+        usbSerialManager.getUsbSerialPort()?.rts = rts
+        true
+    } catch (_: Exception) { false }
 
     fun addDeviceListener(listener: UsbDeviceListener) {
         if (!deviceListeners.contains(listener)) deviceListeners.add(listener)
