@@ -3,7 +3,6 @@
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32" />
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="32" />
     <uses-feature android:name="android.hardware.usb.host" android:required="false" />
-
     <application
         android:name=".ArduinoMobileWorkshopApp"
         android:allowBackup="true"
@@ -16,6 +15,7 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+        <activity android:name=".ui.EditorActivity" android:exported="false" />
         <activity android:name=".ui.SerialMonitorActivity" android:exported="false" />
         <activity android:name=".ui.BoardsManagerActivity" android:exported="false" />
         <activity android:name=".ui.LibraryManagerActivity" android:exported="false" />
@@ -23,17 +23,9 @@
         <activity android:name=".ui.FilePickerActivity" android:exported="false" />
         <activity android:name=".ui.LogicAnalyzerActivity" android:exported="false" />
         <activity android:name=".ui.MultiProgrammerActivity" android:exported="false" />
-
-        <service
-            android:name=".rp2040.services.LogicAnalyzerService"
-            android:exported="false" />
-        <service
-            android:name=".rp2040.services.RP2040ProgrammerService"
-            android:exported="false" />
-
-        <receiver
-            android:name=".usb.UsbDeviceReceiver"
-            android:exported="false">
+        <service android:name=".rp2040.services.LogicAnalyzerService" android:exported="false" />
+        <service android:name=".rp2040.services.RP2040ProgrammerService" android:exported="false" />
+        <receiver android:name=".usb.UsbDeviceReceiver" android:exported="false">
             <intent-filter>
                 <action android:name="android.hardware.usb.action.USB_DEVICE_ATTACHED" />
                 <action android:name="android.hardware.usb.action.USB_DEVICE_DETACHED" />
