@@ -7,10 +7,9 @@ plugins {
 }
 
 allprojects {
-    // Repositories are now declared in settings.gradle.kts
-    // Removed: repositories block to comply with Gradle 8.6+ requirements
+    // Repositories are declared in settings.gradle.kts.
 }
 
 tasks.register<Delete>("clean") {
-    delete(rootProject.buildDir)
+    delete(rootProject.layout.buildDirectory)
 }
