@@ -94,9 +94,7 @@ class ToolchainManager(private val context: Context) {
                     instanceFollowRedirects = true
                 }
                 connection.inputStream.use { extractCli(it, target) }
-                if (!target.setExecutable(true, true) && !target.canExecute()) {
-                    throw IllegalStateException("Downloaded Arduino CLI but could not make it executable")
-                }
+                if (!target.setExecutable(true, true) && !target.canExecute()) throw IllegalStateException("Downloaded Arduino CLI but could not make it executable")
                 val version = runCli(listOf("version")).stdout.trim()
                 if (version.isEmpty()) throw IllegalStateException("Arduino CLI did not start")
                 configureCli()
@@ -109,32 +107,22 @@ class ToolchainManager(private val context: Context) {
     }
 
     fun installLibrary(library: String, callback: (Boolean, String) -> Unit) {
-        executor.execute {
-            val result = runCli(listOf("lib", "install", library))
-            callback(result.exitCode == 0, result.message())
-        }
+        executor.execute { val result = runCli(listOf("lib", "install", library)); callback(result.exitCode == 0, result.message()) }
     }
 
     fun installBoardPackage(packageName: String, callback: (Boolean, String) -> Unit) {
-        executor.execute {
-            val result = runCli(listOf("core", "install", packageName))
-            callback(result.exitCode == 0, result.message())
-        }
+        executor.execute { val result = runCli(listOf("core", "install", packageName)); callback(result.exitCode == 0, result.message()) }
     }
 
     fun updateIndexes(callback: (Boolean, String) -> Unit) {
-        executor.execute {
-            val result = runCli(listOf("core", "update-index"))
-            callback(result.exitCode == 0, result.message())
-        }
+        executor.execute { val result = runCli(listOf("core", "update-index")); callback(result.exitCode == 0, result.message()) }
     }
 
     fun compileSketch(sketchDir: File, boardId: String): Boolean {
         if (!isInitialized || !sketchDir.isDirectory) return false
         val board = getBoardConfig(boardId) ?: return false
         if (!isArduinoCliAvailable() || board.fqbn.isBlank()) return false
-        val outputDir = File(sketchDir, ".build")
-        outputDir.mkdirs()
+        val outputDir = File(sketchDir, ".build").also { it.mkdirs() }
         val result = runCli(listOf("compile", "--fqbn", board.fqbn, "--build-path", outputDir.absolutePath, sketchDir.absolutePath))
         Log.i(TAG, "Compile ${sketchDir.name}: ${result.message()}")
         return result.exitCode == 0
@@ -181,7 +169,7 @@ class ToolchainManager(private val context: Context) {
         val executable = locateArduinoCli() ?: return CommandResult(-1, "", "Arduino CLI is not installed")
         return try {
             val process = ProcessBuilder(listOf(executable.absolutePath) + args)
-                .directory(toolchainDir)
+                .directory(toolchainDir ?: context.filesDir)
                 .redirectErrorStream(false)
                 .start()
             val stdout = process.inputStream.bufferedReader().use { it.readText() }
@@ -201,9 +189,8 @@ class ToolchainManager(private val context: Context) {
                 val name = header.copyOfRange(0, 100).toString(Charsets.UTF_8).trim('\u0000', ' ')
                 val sizeText = header.copyOfRange(124, 136).toString(Charsets.US_ASCII).trim('\u0000', ' ')
                 val size = sizeText.toLongOrNull(8) ?: 0L
-                if (name.endsWith("/")) {
-                    skipFully(gzip, size)
-                } else if (name.substringAfterLast('/') == CLI_NAME) {
+                if (name.endsWith("/")) skipFully(gzip, size)
+                else if (name.substringAfterLast('/') == CLI_NAME) {
                     FileOutputStream(target).use { output -> copyExactly(gzip, output, size) }
                     skipFully(gzip, (512 - (size % 512)) % 512)
                     return
