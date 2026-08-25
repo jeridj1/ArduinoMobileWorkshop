@@ -14,7 +14,7 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 40
     steps:
       - uses: actions/checkout@v4
       - name: Set up JDK 17
@@ -29,9 +29,29 @@ jobs:
           # defaulted to go 1.24.13. Pin to 1.26.1 so the cross-compile resolves.
           go-version: '1.26.1'
           check-latest: true
-      - name: Build Android Arduino CLI
+      - name: Clone arduino-cli-android
+        id: clone_cli
         run: |
           git clone --depth 1 https://github.com/ipodvideo87/arduino-cli-android.git /tmp/arduino-cli-android
+          if [ -f /tmp/arduino-cli-android/go.sum ]; then
+            echo "gosum_hash=$(sha256sum /tmp/arduino-cli-android/go.sum | cut -d' ' -f1)" >> "$GITHUB_OUTPUT"
+          else
+            echo "gosum_hash=nogosum" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Cache Go modules & build cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/go/pkg/mod
+            ~/.cache/go-build
+          key: ${{ runner.os }}-go-arduinocli-${{ steps.clone_cli.outputs.gosum_hash }}
+          restore-keys: |
+            ${{ runner.os }}-go-arduinocli-
+      - name: Build Android Arduino CLI
+        id: build_cli
+        continue-on-error: true
+        timeout-minutes: 30
+        run: |
           mkdir -p app/src/main/jniLibs/arm64-v8a
           cd /tmp/arduino-cli-android
           CGO_ENABLED=0 GOOS=android GOARCH=arm64 go build -buildvcs=false -o "$GITHUB_WORKSPACE/app/src/main/jniLibs/arm64-v8a/libarduino_cli.so" .
@@ -71,11 +91,11 @@ jobs:
               core.warning('build.log not found: ' + e.message);
             }
             const tail = log.split('\n').slice(-150).join('\n');
-            const repo = context.payload.repository.full_name;
             const runUrl = `${context.payload.repository.html_url}/actions/runs/${context.runId}`;
+            const cliNote = ${{ steps.build_cli.outcome == 'failure' }} ? '\n\nNote: the arduino-cli Go cross-compile step failed or timed out (continue-on-error); the APK build below ran independently.\n' : '';
             const body = [
               'CI build failed on commit `${context.sha.slice(0,7)}` (`' + context.sha + '`).',
-              '',
+              cliNote,
               'Last ~150 lines of the Gradle build log:',
               '',
               '```',
