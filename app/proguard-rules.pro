@@ -34,3 +34,13 @@
 -keep class * implements android.os.Parcelable {
     public static final android.os.Parcelable$Creator *;
 }
+
+# usb-serial-for-android (mik3y / com.hoho.android.usbserial) - keep the driver
+# registry, individual drivers and the SerialInputOutputManager so they are not
+# removed/renamed when minification is enabled. Drivers are referenced directly
+# from code, but the prober uses a driver list that must survive shrinking.
+-keep class com.hoho.android.usbserial.** { *; }
+-dontwarn com.hoho.android.usbserial.**
+
+# Keep our USB serial connection classes (reflection-free, but explicit for safety)
+-keep class com.arduinomobileworkshop.usb.** { *; }
