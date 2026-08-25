@@ -7,6 +7,10 @@ on:
     branches: [ main ]
   workflow_dispatch:
 
+permissions:
+  contents: read
+  issues: write
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -21,8 +25,8 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v6
         with:
-          # arduino-cli-android's go.mod requires Go >= 1.26.1. Pin to the
-          # latest stable release so the cross-compile step resolves.
+          # arduino-cli-android's go.mod requires Go >= 1.26.1, but the runner
+          # defaulted to go 1.24.13. Pin to 1.26.1 so the cross-compile resolves.
           go-version: '1.26.1'
           check-latest: true
       - name: Build Android Arduino CLI
@@ -37,7 +41,9 @@ jobs:
       - name: Make gradlew executable
         run: chmod +x ./gradlew
       - name: Build debug APK
-        run: ./gradlew clean assembleDebug --stacktrace --no-daemon
+        run: |
+          ./gradlew clean assembleDebug --stacktrace --no-daemon 2>&1 | tee build.log
+          test -s app/build/outputs/apk/debug/app-debug.apk
       - name: Verify APK exists
         run: test -s app/build/outputs/apk/debug/app-debug.apk
       - name: Upload APK
@@ -46,3 +52,42 @@ jobs:
           name: ArduinoMobileWorkshop-debug
           path: app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
+      - name: Upload build log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-log
+          path: build.log
+          if-no-files-found: warn
+      - name: Report build failure as issue
+        if: failure()
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const fs = require('fs');
+            let log = '';
+            try { log = fs.readFileSync('build.log', 'utf8'); } catch (e) {
+              core.warning('build.log not found: ' + e.message);
+            }
+            const tail = log.split('\n').slice(-150).join('\n');
+            const repo = context.payload.repository.full_name;
+            const runUrl = `${context.payload.repository.html_url}/actions/runs/${context.runId}`;
+            const body = [
+              'CI build failed on commit `${context.sha.slice(0,7)}` (`' + context.sha + '`).',
+              '',
+              'Last ~150 lines of the Gradle build log:',
+              '',
+              '```',
+              tail,
+              '```',
+              '',
+              '[Failed workflow run](' + runUrl + ')'
+            ].join('\n');
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: 'CI build failed: ' + context.sha.slice(0, 7),
+              body: body,
+              labels: ['ci-failure']
+            });
