@@ -59,6 +59,8 @@ class RP2040PicobootFlasher(
 
         // USB control request to read the command status (vendor, interface, IN).
         private const val GET_CMD_STATUS_REQUEST = 0x40
+        // Recipient encoding for the control bmRequestType (not exposed by UsbConstants).
+        private const val USB_RECIPIENT_INTERFACE = 0x01
 
         private const val FLASH_SECTOR_SIZE = 4096
         private const val BULK_TIMEOUT_MS = 5000
@@ -182,7 +184,7 @@ class RP2040PicobootFlasher(
             val bb = ByteBuffer.wrap(data, i, UF2_BLOCK_SIZE).order(ByteOrder.LITTLE_ENDIAN)
             val m0 = bb.int
             val m1 = bb.int
-            if (m0 != UF2_MAGIC_START0 || m1 != UF2_MAGIC_START1) { i += UF2_BLOCK_SIZE; continue }
+            if (m0 != UF2_MAGIC_START0.toInt() || m1 != UF2_MAGIC_START1.toInt()) { i += UF2_BLOCK_SIZE; continue }
             bb.int // flags
             val targetAddr = bb.int.toLong() and 0xFFFFFFFFL
             bb.int // payloadSize (256)
@@ -262,7 +264,7 @@ class RP2040PicobootFlasher(
         val status = ByteArray(12)
         for (attempt in 0 until 50) {
             val n = conn.controlTransfer(
-                UsbConstants.USB_DIR_IN or UsbConstants.USB_TYPE_VENDOR or UsbConstants.USB_RECIPIENT_INTERFACE,
+                UsbConstants.USB_DIR_IN or UsbConstants.USB_TYPE_VENDOR or USB_RECIPIENT_INTERFACE,
                 GET_CMD_STATUS_REQUEST, 0, ifaceId, status, status.size, 200
             )
             if (n < 0) {
