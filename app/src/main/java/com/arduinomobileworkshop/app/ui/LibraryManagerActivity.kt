@@ -28,8 +28,16 @@ class LibraryManagerActivity : AppCompatActivity() {
         libraryAdapter = ArrayAdapter(this, android.R.layout.simple_list_item_1)
         binding.librariesListView.adapter = libraryAdapter
         binding.librariesListView.setOnItemClickListener { _, _, position, _ -> libraryAdapter.getItem(position)?.let(::showLibraryDetails) }
-        binding.refreshButton.setOnClickListener { loadLibraries() }
-        binding.installButton.setOnClickListener { showInstallDialog() }
+        binding.refreshButton.setOnClickListener {
+            showToast("Refreshing library index...")
+            toolchainManager.refreshLibraryIndex { success, _ ->
+                runOnUiThread {
+                    showToast(if (success) "Library index updated" else "Index refresh unavailable (showing cached)")
+                    loadLibraries()
+                }
+            }
+        }
+        binding.installButton.setOnClickListener { startLibrarySearch() }
     }
 
     private fun loadLibraries() {
@@ -48,16 +56,35 @@ class LibraryManagerActivity : AppCompatActivity() {
             .show()
     }
 
-    private fun showInstallDialog() {
-        val libraries = arrayOf("FastLED", "Adafruit GFX Library", "Adafruit BusIO", "OneWire", "DallasTemperature")
+    private fun startLibrarySearch() {
+        showToast("Searching library index...")
+        toolchainManager.searchLibraries("") { results ->
+            runOnUiThread {
+                val libs = if (results.isEmpty()) defaultPopularLibraries() else results
+                showLibraryInstallDialog(libs)
+            }
+        }
+    }
+
+    private fun defaultPopularLibraries(): List<Library> = listOf(
+        Library("FastLED", "FastLED", "3.6.0", "FastLED", "Parallel output of LED strips", "FastLED"),
+        Library("Adafruit GFX Library", "Adafruit GFX Library", "", "Adafruit", "Core graphics library for Adafruit displays", "Adafruit_GFX"),
+        Library("Adafruit BusIO", "Adafruit BusIO", "", "Adafruit", "I2C/SPI abstraction for Adafruit devices", "Adafruit_BusIO"),
+        Library("OneWire", "OneWire", "", "Paul Stoffregen", "1-wire bus protocol", "OneWire"),
+        Library("DallasTemperature", "DallasTemperature", "", "Miles Burton", "DS18B20 temperature sensors", "DallasTemperature"),
+        Library("Servo", "Servo", "", "Arduino", "Standard RC servo control", "Servo")
+    )
+
+    private fun showLibraryInstallDialog(libs: List<Library>) {
+        val names = libs.map { it.name + if (it.version.isNotEmpty()) " " + it.version else "" }.toTypedArray()
         android.app.AlertDialog.Builder(this)
             .setTitle("Install Library")
-            .setItems(libraries) { _, which ->
-                val library = libraries[which]
-                showToast("Installing $library...")
-                toolchainManager.installLibrary(library) { success, output ->
+            .setItems(names) { _, which ->
+                val library = libs[which]
+                showToast("Installing " + library.name + "...")
+                toolchainManager.installLibrary(library.name) { success, output ->
                     runOnUiThread {
-                        showToast(if (success) "Installed $library" else "Install failed")
+                        showToast(if (success) "Installed " + library.name else "Install failed")
                         if (!success) android.app.AlertDialog.Builder(this).setTitle("Arduino CLI").setMessage(output).setPositiveButton("OK", null).show()
                         loadLibraries()
                     }

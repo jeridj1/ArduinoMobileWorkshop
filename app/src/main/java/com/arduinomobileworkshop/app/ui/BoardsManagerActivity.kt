@@ -28,7 +28,15 @@ class BoardsManagerActivity : AppCompatActivity() {
         boardAdapter = ArrayAdapter(this, android.R.layout.simple_list_item_1)
         binding.boardsListView.adapter = boardAdapter
         binding.boardsListView.setOnItemClickListener { _, _, position, _ -> boardAdapter.getItem(position)?.let(::showBoardDetails) }
-        binding.refreshButton.setOnClickListener { loadBoards() }
+        binding.refreshButton.setOnClickListener {
+            showToast("Downloading board index...")
+            toolchainManager.refreshBoardIndex { success, _ ->
+                runOnUiThread {
+                    showToast(if (success) "Board index updated" else "Index refresh unavailable (showing cached/default)")
+                    loadBoards()
+                }
+            }
+        }
         binding.installButton.setOnClickListener { showInstallDialog() }
     }
 
@@ -50,15 +58,15 @@ class BoardsManagerActivity : AppCompatActivity() {
 
     private fun showInstallDialog() {
         val boards = toolchainManager.getAvailableBoards()
-        val names = boards.map { it.name }
+        val names = boards.map { it.name + " (" + it.packageName + ")" }
         android.app.AlertDialog.Builder(this)
             .setTitle("Install Board Package")
             .setItems(names.toTypedArray()) { _, which ->
                 val board = boards[which]
-                showToast("Installing ${board.packageName}...")
+                showToast("Installing " + board.packageName + "...")
                 toolchainManager.installBoardPackage(board.packageName) { success, output ->
                     runOnUiThread {
-                        showToast(if (success) "Installed ${board.name}" else "Install failed")
+                        showToast(if (success) "Installed " + board.name else "Install failed")
                         if (!success) showOutputDialog(output)
                     }
                 }
