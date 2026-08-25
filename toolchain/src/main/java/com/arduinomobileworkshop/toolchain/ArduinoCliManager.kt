@@ -3,25 +3,21 @@ package com.arduinomobileworkshop.toolchain
 import android.content.Context
 import android.util.Log
 import java.io.File
-import java.io.FileOutputStream
-import java.io.IOException
 import java.util.concurrent.TimeUnit
 
 /**
  * Wrapper around a cross-compiled (arm64-v8a) arduino-cli binary bundled with
- * the app.
+ * the app as a jniLib.
  *
- * Desktop arduino-cli executables cannot run on Android, so a native
- * arm64-v8a build is shipped inside the APK and extracted at runtime into the
- * application's private files directory
- * (/data/data/com.arduinomobileworkshop.app/files/arduino-cli/). Compiler
- * commands (e.g. 'arduino-cli compile') are launched with [ProcessBuilder];
- * standard error is merged into the output stream so compiler diagnostics are
+ * Android only permits programmatic execution of binaries from the app's
+ * nativeLibraryDir (the directory where .so files are extracted on install).
+ * The CLI is therefore packed as "libarduino-cli.so" in
+ * app/src/main/jniLibs/arm64-v8a/ and launched directly from
+ * context.applicationInfo.nativeLibraryDir.  Attempting to execute from
+ * filesDir or cacheDir raises EACCES (error=13 Permission Denied).
+ *
+ * Standard error is merged into the output stream so compiler diagnostics are
  * redirected straight back to the user's graphical console.
- *
- * Resolution order for the binary:
- *  1. APK asset '$ASSET_NAME'  -> extracted into filesDir.
- *  2. jniLib '$JNI_LIB_NAME'    -> copied from nativeLibraryDir (fallback).
  */
 class ArduinoCliManager(private val context: Context) {
 
@@ -31,55 +27,36 @@ class ArduinoCliManager(private val context: Context) {
 
     companion object {
         private const val TAG = "AMW_ArduinoCli"
+
+        /** The jniLib name — must match the file in jniLibs/arm64-v8a/. */
+        const val JNI_LIB_NAME = "libarduino-cli.so"
+
+        // Retained for backward compatibility with any external callers.
         const val ASSET_NAME = "arduino-cli-arm64"
         const val EXE_NAME = "arduino-cli"
-        const val JNI_LIB_NAME = "libarduino_cli.so"
     }
 
-    private val installDir: File = File(context.filesDir, "arduino-cli")
     private val configDir: File = File(context.filesDir, "arduino-cli-config")
     private val dataDir: File = File(configDir, "data")
     private val userDir: File = File(configDir, "user")
 
-    private val executable: File get() = File(installDir, EXE_NAME)
+    /**
+     * The only path Android allows programmatic execution from.  The binary
+     * is packed as a jniLib and extracted here by the package installer when
+     * extractNativeLibs="true" (useLegacyPackaging = true).
+     */
+    private val executable: File
+        get() = File(context.applicationInfo.nativeLibraryDir, JNI_LIB_NAME)
 
+    /**
+     * Returns true when the native binary is present and executable.
+     * No extraction is needed — the OS already placed it in nativeLibraryDir.
+     */
     @Synchronized
-    fun ensureInstalled(): Boolean {
-        if (executable.exists() && executable.canExecute()) return true
-        return extract()
-    }
-
-    private fun extract(): Boolean {
-        installDir.mkdirs()
-
-        // 1) Bundled cross-compiled asset.
-        val fromAsset = try {
-            context.assets.open(ASSET_NAME).use { input ->
-                FileOutputStream(executable).use { output -> input.copyTo(output) }
-            }
-            executable.setExecutable(true, false)
-            true
-        } catch (e: IOException) {
-            false
-        }
-        if (fromAsset && executable.canExecute()) return true
-
-        // 2) Fallback: jniLib packaged as a .so.
-        val jniLib = File(context.applicationInfo.nativeLibraryDir, JNI_LIB_NAME)
-        if (jniLib.exists() && jniLib.canExecute()) {
-            try {
-                jniLib.copyTo(executable, overwrite = true)
-                executable.setExecutable(true, false)
-                return executable.canExecute()
-            } catch (e: IOException) {
-                Log.w(TAG, "Fallback copy failed: " + (e.message ?: ""))
-            }
-        }
-        return false
-    }
+    fun ensureInstalled(): Boolean = executable.exists() && executable.canExecute()
 
     fun getExecutablePath(): String = executable.absolutePath
-    fun getInstallDir(): File = installDir
+    fun getInstallDir(): File = executable.parentFile ?: File(context.applicationInfo.nativeLibraryDir)
     fun getConfigDir(): File = configDir
 
     /** Writes an arduino-cli config so data/user dirs stay in app-private storage. */
@@ -99,8 +76,8 @@ class ArduinoCliManager(private val context: Context) {
         if (!ensureInstalled()) {
             return Result(
                 -1,
-                "Arduino CLI is not bundled with this APK build. Expected asset '"
-                    + ASSET_NAME + "' or jniLib '" + JNI_LIB_NAME + "'."
+                "Arduino CLI native binary not found at " + executable.absolutePath +
+                    ". Expected jniLib '" + JNI_LIB_NAME + "' in the APK (arm64-v8a)."
             )
         }
         configDir.mkdirs(); dataDir.mkdirs(); userDir.mkdirs()
@@ -111,7 +88,7 @@ class ArduinoCliManager(private val context: Context) {
             }
             val process = ProcessBuilder(command)
                 .directory(configDir)
-                .redirectErrorStream(true)   // merge stderr into stdout for the console
+                .redirectErrorStream(true)
                 .apply {
                     environment()["ARDUINO_DATA_DIR"] = dataDir.absolutePath
                     environment()["ARDUINO_USER_DIR"] = userDir.absolutePath

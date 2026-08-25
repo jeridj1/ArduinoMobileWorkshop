@@ -19,7 +19,7 @@ android {
             isMinifyEnabled = false
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
         }
-        debug { packaging.jniLibs.keepDebugSymbols.add("**/libarduino_cli.so") }
+        debug { packaging.jniLibs.keepDebugSymbols.add("**/libarduino-cli.so") }
     }
     packaging.jniLibs.useLegacyPackaging = true
     compileOptions {
