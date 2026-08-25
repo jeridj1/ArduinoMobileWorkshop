@@ -138,8 +138,6 @@ class UsbManager(private val context: Context) {
     fun setBaudRate(baudRate: Int): Boolean = usbSerialManager.setBaudRate(baudRate)
     fun setDtr(dtr: Boolean): Boolean = usbSerialManager.setDtr(dtr)
     fun setRts(rts: Boolean): Boolean = usbSerialManager.setRts(rts)
-    fun getUsbSerialManager(): UsbSerialManager = usbSerialManager
-    fun getAndroidUsbManager(): AndroidUsbManager = androidUsbManager
 
     fun addDeviceListener(listener: UsbDeviceListener) {
         if (!deviceListeners.contains(listener)) deviceListeners.add(listener)
