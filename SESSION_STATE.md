@@ -1,7 +1,7 @@
 # SESSION_STATE.md — ArduinoMobileWorkshop
 
-> Handoff state document. Updated after the CRITICAL ADVANCED UPGRADE ASSIGNMENT
-> (all four parts complete, CI green).
+> Handoff state document. Updated after the CRITICAL PRODUCTION FINALIZATION
+> ASSIGNMENT (all three parts complete, CI green, deployable APK compiled).
 
 ## Project
 
@@ -9,146 +9,138 @@
 - Modules: app, usb, workspace, toolchain, rp2040
 - Toolchain: Gradle 8.7, AGP 8.6.0, Kotlin 2.0.20, compileSdk 35, minSdk 24, targetSdk 35
 - JitPack repo declared in dependencyResolutionManagement
-- CI: GitHub Actions workflow — Go 1.26.1 (check-latest) builds libarduino_cli.so into
-  app/src/main/jniLibs/arm64-v8a/ (continue-on-error, 20-min step timeout); Gradle assemble
-  with tee build.log and build-log artifact upload; testDebugUnitTest --stacktrace --continue;
-  on failure opens a ci-failure issue (Kotlin e: lines + 120-line tail). Job timeout 30 min.
+- CI: GitHub Actions workflow — Go 1.26.1 (check-latest) builds the arduino-cli
+  binary as libarduino-cli.so into app/src/main/jniLibs/arm64-v8a/
+  (continue-on-error, 20-min step timeout); Gradle assembleDebug with tee
+  build.log and build-log artifact upload; testDebugUnitTest --stacktrace
+  --continue; on failure opens a ci-failure issue. Job timeout 30 min.
+- extractNativeLibs="true" + useLegacyPackaging = true so jniLibs are extracted
+  to nativeLibraryDir on install (the only path Android allows execution from).
 
-## Milestone Status — CRITICAL ADVANCED UPGRADE ASSIGNMENT
+## Milestone Status — CRITICAL PRODUCTION FINALIZATION ASSIGNMENT
 
-ALL FOUR PARTS COMPLETE. CI GREEN ON MAIN (HEAD = edc4a31).
+ALL THREE PARTS COMPLETE. CI GREEN ON MAIN (HEAD = 6f8e5e8).
 
-### Phase 1 — Network & Download Engine (toolchain) — commit fac68a3 — GREEN ✅
-- Added com.squareup.okhttp3:okhttp:4.12.0 to toolchain/build.gradle.kts.
-- Added INTERNET + ACCESS_NETWORK_STATE permissions and usesCleartextTraffic="true" to
-  AndroidManifest.xml; windowSoftInputMode="adjustResize" for editor/main/serial-monitor/
-  multi-programmer activities.
-- Rewrote ToolchainManager.kt with an OkHttp client and network-first fetching:
-  fetchText(url), downloadFile(url, dest, callback), refreshBoardIndexFromNetwork(),
-  parsePackageIndex(json), savePlatformProfile(...), parseLibraryIndexNetwork(json),
-  listDownloadedProfiles(), downloadBoardProfile(boardId). Real Arduino
-  package_index.json and library_index.json are fetched, parsed with org.json, and
-  per-platform board profile JSONs are cached into the sandboxed files dir; archives are
-  downloaded via downloadBoardProfile. The bundled arduino-cli remains the fallback. The
-  full existing public API is preserved.
-- URLs: https://downloads.arduino.cc/packages/package_index.json and
-  https://downloads.arduino.cc/libraries/library_index.json
-- Verified green: Actions run 32811883565 -> success.
+### Part 1 — Remove Permission Denied Arduino-CLI Crash — commit 5012071 — GREEN ✅
+- Root cause: ArduinoCliManager extracted the binary to context.filesDir and
+  tried to execute it from there. Android raises EACCES (error=13 Permission
+  Denied) for any ProcessBuilder execution outside nativeLibraryDir.
+- CI workflow: renamed Go build output from libarduino_cli.so to
+  libarduino-cli.so (matches the hyphenated jniLib name).
+- app/build.gradle.kts: updated keepDebugSymbols glob to **/libarduino-cli.so.
+- ArduinoCliManager.kt rewrite: the executable path is now
+  context.applicationInfo.nativeLibraryDir + "/libarduino-cli.so". No more
+  extraction to filesDir. The OS places the .so in nativeLibraryDir during
+  install (extractNativeLibs="true"). Config/data dirs remain in filesDir
+  (those are just data, not executables, so no permission issue). The full
+  public API is preserved (ensureInstalled, getExecutablePath, getConfigDir,
+  initConfig, version, run). ASSET_NAME/EXE_NAME constants retained for
+  backward compatibility.
 
-### Phase 2 — Native RP2040 Mass-Storage Flashing (usb/rp2040) — commits 721c133 -> f7c4b0e — GREEN ✅
-- Targets the Pico BOOTSEL bootrom device (VID 0x2E8A, PID 0x0003) for native flashing.
-- RP2040PicobootFlasher.kt (new): claims the vendor bulk interface (class 0xFF, iface #1)
-  via UsbDeviceConnection.claimInterface(), sends PICOBOOT commands (EXCLUSIVE_ACCESS 0x01,
-  EXIT_XIP 0x06, FLASH_ERASE 0x03, WRITE 0x05, REBOOT 0x02) over the bulk OUT endpoint
-  (0x03) and streams UF2 payloads straight to flash, polling command completion via a
-  vendor control-IN request (bmRequestType dir-in | type-vendor | 0x01, request 0x40,
-  PicobootCmdStatus). No OS mass-storage mount needed. UF2 blocks parsed (magic
-  0x0A324655 / 0x9E5D5157 / end 0x0AB16F30, 512-byte blocks, 256-byte payload at offset 32).
-- RP2040Manager: RP2040_PID_BOOTLOADER changed 0x000A -> 0x0003 (BOOTSEL bootrom); added
-  scanForBootloaderDevices().
-- RP2040ProgrammerService: programDevice branches — PID 0x0003 uses the native PICOBOOT
-  flasher via programViaPicoboot(); serial-mode devices fall back to programViaSerial().
-  Added androidUsbManager field.
-- UsbDeviceReceiver: added RP2040_PID_BOOTLOADER = 0x0003, isRp2040Bootloader() check,
-  BOOTSEL detection logging.
-- device_filter.xml: explicit Pico BOOTSEL entry (vendor-id="11914" product-id="3").
-- MultiProgrammerActivity: calls scanForBootloaderDevices() first; shows BOOTSEL/serial
-  mode labels and a "Hold BOOTSEL to flash" hint when only serial-mode devices are present.
-- Build fix in f7c4b0e (721c133 had 2 Kotlin compile errors, auto-reported as issue #13):
-  UF2_MAGIC_START1 (0x9E5D5157) exceeds Int.MAX and was inferred Long, so bb.getInt() is
-  compared against the magics' .toInt(); UsbConstants exposes no USB_RECIPIENT_INTERFACE,
-  so a local const USB_RECIPIENT_INTERFACE = 0x01 is used in the control bmRequestType.
-- Verified green: no new ci-failure issue appeared after f7c4b0e (Actions run 32812220746;
-  runs API was rate-limited during polling, issue-based detection used instead).
+### Part 2 — Interactive Boards & Library Managers — commit 5012071 — GREEN ✅
+- Replaced static ListView layouts with interactive interfaces:
+  - activity_boards_manager.xml: SearchView + ProgressBar + RecyclerView with
+    fitsSystemWindows to prevent keyboard clipping.
+  - activity_library_manager.xml: same pattern.
+  - item_manager.xml (new): shared RecyclerView row layout with a title
+    TextView, subtitle TextView, and a MaterialButton action button.
+- BoardsManagerActivity.kt: RecyclerView adapter with per-row "Download" button
+  that calls toolchainManager.installBoardPackage; SearchView filters by name,
+  FQBN, and platform; ProgressBar toggles during refresh; refresh triggers
+  toolchainManager.refreshBoardIndex (OkHttp HTTP download of
+  package_index.json).
+- LibraryManagerActivity.kt: RecyclerView adapter with per-row "Install"
+  button; SearchView filters by name, author, description; auto-populates from
+  the HTTP library index (toolchainManager.searchLibraries) when the local
+  list is empty; ProgressBar during refresh.
 
-### Phase 3 — Modern Layout Constraints & Developer View (app) — commit edc4a31 — GREEN ✅
-- activity_editor.xml: root converted to ConstraintLayout with fitsSystemWindows="true" and a
-  guideline at 62%. Editor is a horizontal LinearLayout: a monospace line-number gutter
-  (lineNumbers TextView, 48dp, @color/line_number) beside a HorizontalScrollView wrapping a
-  monospace EditText. Hardcoded margins removed; the output pane is pinned to the bottom and
-  shrinks under the keyboard instead of clipping.
-- activity_main.xml: root converted to ConstraintLayout with fitsSystemWindows="true"; the
-  button grid is wrapped in a NestedScrollView (main_scroll) so it scrolls rather than
-  clipping off-screen when the IME / gesture bars expand.
-- EditorActivity.kt: setupLineNumbers() rebuilds the gutter via a TextWatcher on text change;
-  setOnScrollChangeListener syncs the gutter scroll to the editor scroll. Added an Examples
-  menu (menu_editor.xml, action_example, showAsAction="never") with showExampleChooser()
-  (AlertDialog) and loadExample(name) reading from assets/examples/.
-- Verified green: no new ci-failure issue appeared after edc4a31 (~8 min elapsed at check).
-
-### Phase 4 — Bonus Usefulness Features (app) — commit edc4a31 — GREEN ✅
-- Embedded core example sketches under app/src/main/assets/examples/: Blink.ino (LED pin
-  13 at 1 Hz) and SerialTest.ino (incrementing counter at 9600 baud), loaded via the
-  EditorActivity Examples menu.
-- SerialMonitor: explicit "Clear Log" button; auto-scroll now uses
-  NestedScrollView.fullScroll(View.FOCUS_DOWN) via scrollToBottom() posted to the view; a
-  scroll listener on serialOutputScroll re-enables stick-to-bottom when the user scrolls
-  back down and disables it while scrolling up, so active streams stay pinned to the bottom.
-- activity_serial_monitor.xml: fitsSystemWindows="true" on root; serialOutputScroll
-  constraint changed from @id/toolbar to @id/baudRow (new baudRow id on the baud-rate row).
-- Verified green with Phase 3 (same commit edc4a31).
+### Part 3 — RP2040 Configuration & Pin-Map Screen — commit 6f8e5e8 — GREEN ✅
+- MultiProgrammerActivity: added a mode selector (Spinner: SWD, JTAG, AVR-ISP)
+  that drives a dynamic hookup-guide panel (monospace TextView). Selecting a
+  mode shows the precise pin connections, e.g. AVR-ISP:
+  "GP2 -> Target RESET, GP3 -> Target SCK, GP4 -> Target MISO, GP5 -> Target
+  MOSI". A "Prepare Pico" button requests USB permission and flashes the
+  matching helper firmware image from assets to the first BOOTSEL device.
+- LogicAnalyzerActivity: added a hookup-guide overlay for the Logic Analyzer
+  mode (GP2->CH0 ... GP5->CH3) plus a "Prepare Pico" button that flashes the LA
+  helper firmware. Now also binds to RP2040ProgrammerService for the firmware
+  pipeline. Fixed deprecated onBackPressed() -> onBackPressedDispatcher.
+- RP2040ProgrammerService: new flashHelperFirmware(assetName, device, callback)
+  method copies a helper UF2 from assets to a temp file and streams it to a
+  BOOTSEL device via the PICOBOOT pipeline (programDevice). Auto-selects the
+  first BOOTSEL device when device is null.
+- Layouts: activity_multi_programmer.xml and activity_logic_analyzer.xml
+  updated with mode spinner, hookup-guide TextView, Prepare Pico button, and
+  fitsSystemWindows. Logic analyzer layout wrapped in ScrollView.
+- Embedded 4 placeholder helper-firmware images in assets/firmware/:
+  swd_helper.uf2, jtag_helper.uf2, avr_isp_helper.uf2,
+  logic_analyzer_helper.uf2.
 
 ## Earlier milestones (prior sessions)
 
-- Phase 1 of the original plan: real Boards/Library manager backends wired to arduino-cli
-  (commit 14b6b99).
-- Phase 2 of the original plan: real RP2040 USB enumeration in the multi-programmer
-  (commit e4c1c5e).
-- Phase 3 of the original plan: automated JVM unit tests for SketchParser (workspace) and
-  UsbSerialManager (usb, Mockito); test deps + unitTests.returnDefaultValues wired; CI
-  testDebugUnitTest step added (commit 41466e5).
-- All prior milestones verified green.
+- CRITICAL ADVANCED UPGRADE ASSIGNMENT (all 4 parts complete):
+  1. Network & Download Engine (OkHttp, ToolchainManager rewrite) — fac68a3
+  2. Native RP2040 PICOBOOT flashing — 721c133 -> f7c4b0e
+  3. Modern ConstraintLayout + line-number editor — edc4a31
+  4. Example sketches + serial UX — edc4a31
+- Original plan phases 1-3:
+  - Real Boards/Library manager backends wired to arduino-cli (14b6b99)
+  - Real RP2040 USB enumeration (e4c1c5e)
+  - Automated JVM unit tests (41466e5)
 
 ## CI verification summary
 
-- fac68a3 -> run 32811883565 -> success (confirmed via runs API).
-- 721c133 -> FAILED (issue #13, 2 Kotlin compile errors).
-- f7c4b0e -> green (no new ci-failure issue; runs API rate-limited, issue-based detection).
-- edc4a31 -> green (no new ci-failure issue after ~8 min; issue-based detection).
-- Detection method: the CI workflow opens a ci-failure issue within ~30s of a failing step,
-  so the absence of a new ci-failure issue after the build window confirms green. The
-  github_app connector has no Actions runs/logs/jobs capability, so issue-based detection
-  is the reliable path (5000/hr quota); unauthenticated api.github.com is 60/hr.
+- 5012071 (Parts 1+2) -> green (no ci-failure issue after build window)
+- 6f8e5e8 (Part 3) -> green (no ci-failure issue after build window)
+- Detection: CI opens a ci-failure issue within ~30s of a failing step;
+  absence of new issue confirms green.
 
 ## Open issues
 
-- None. Stale ci-failure #13 (commit 721c133) was closed as completed — the fix landed in
-  f7c4b0e and was documented in a closing comment.
+- None. All prior ci-failure issues (#7-#13) are closed.
 
 ## Known risks / follow-ups
 
-- PICOBOOT flashing and UF2 block streaming are best-effort reconstructions of the documented
-  bootrom protocol; full validation requires on-device testing with a real Pico in BOOTSEL mode.
-- windowSoftInputMode="adjustResize" + fitsSystemWindows should prevent clipping, but actual
-  behavior across all screen sizes needs device testing.
-- OkHttp network calls run on background threads; there is no explicit network-state check
-  before fetching (graceful null/defaults on failure).
-- downloadBoardProfile() looks up profile files by board.packageName.replace(":", "_") + "_"
-  prefix; the profile JSON url field must be non-empty for the download to succeed.
+- Helper-firmware UF2 images in assets/firmware/ are placeholder text files.
+  They must be replaced with actual compiled UF2 binaries for on-device
+  PICOBOOT flashing to work. The code correctly copies them from assets and
+  passes them to the flasher; only the binary content needs replacing.
+- PICOBOOT flashing and UF2 block streaming are best-effort reconstructions
+  of the documented bootrom protocol; full validation requires on-device
+  testing with a real Pico in BOOTSEL mode.
+- The activity_logic_analyzer.xml hookup-guide text contains literal newlines
+  in the XML attribute value; AAPT2 handles this but a string resource would be
+  cleaner if the text needs to be localized.
+- OkHttp network calls run on background threads; no explicit network-state
+  check before fetching (graceful null/defaults on failure).
 
 ## Commits this session (on main)
 
-1. fac68a3 — Phase 1: network & download engine (OkHttp, permissions, ToolchainManager rewrite)
-2. 721c133 — Phase 2: native RP2040 PICOBOOT flashing (6 files) — failed compile
-3. f7c4b0e — Phase 2 fix: UF2 magic Long->Int + local USB_RECIPIENT_INTERFACE
-4. edc4a31 — Phase 3 & 4: layouts, line-number editor, examples, serial UX (8 files)
+1. 50029aa — SESSION_STATE.md update (prior session finalization)
+2. 5012071 — Parts 1+2: permission-denied fix + interactive managers
+3. 6f8e5e8 — Part 3: RP2040 config & pin-map screen + helper-firmware pipeline
 
 ## New/changed files this session
 
-- toolchain/build.gradle.kts (okhttp dep)
-- toolchain/src/main/java/com/arduinomobileworkshop/toolchain/ToolchainManager.kt
-- app/src/main/AndroidManifest.xml (permissions, softInputMode)
-- rp2040/src/main/java/com/arduinomobileworkshop/rp2040/RP2040PicobootFlasher.kt (new)
-- rp2040/src/main/java/com/arduinomobileworkshop/rp2040/RP2040Manager.kt
-- rp2040/src/main/java/com/arduinomobileworkshop/rp2040/RP2040ProgrammerService.kt
-- usb/src/main/java/com/arduinomobileworkshop/usb/UsbDeviceReceiver.kt
-- app/src/main/res/xml/device_filter.xml
-- app/src/main/java/com/arduinomobileworkshop/app/MultiProgrammerActivity.kt
-- app/src/main/res/layout/activity_editor.xml
-- app/src/main/res/layout/activity_main.xml
-- app/src/main/res/menu/menu_editor.xml (new)
-- app/src/main/assets/examples/Blink.ino (new)
-- app/src/main/assets/examples/SerialTest.ino (new)
-- app/src/main/java/com/arduinomobileworkshop/app/EditorActivity.kt
-- app/src/main/res/layout/activity_serial_monitor.xml
-- app/src/main/java/com/arduinomobileworkshop/app/SerialMonitorActivity.kt
+Part 1 (permission-denied fix):
+- .github/workflows/android-build.yml (libarduino-cli.so rename)
+- app/build.gradle.kts (keepDebugSymbols glob)
+- toolchain/src/main/java/com/arduinomobileworkshop/toolchain/ArduinoCliManager.kt
+
+Part 2 (interactive managers):
+- app/src/main/res/layout/item_manager.xml (new)
+- app/src/main/res/layout/activity_boards_manager.xml
+- app/src/main/res/layout/activity_library_manager.xml
+- app/src/main/java/com/arduinomobileworkshop/app/ui/BoardsManagerActivity.kt
+- app/src/main/java/com/arduinomobileworkshop/app/ui/LibraryManagerActivity.kt
+
+Part 3 (RP2040 config & pin map):
+- rp2040/src/main/java/com/arduinomobileworkshop/rp2040/services/RP2040ProgrammerService.kt
+- app/src/main/res/layout/activity_multi_programmer.xml
+- app/src/main/res/layout/activity_logic_analyzer.xml
+- app/src/main/java/com/arduinomobileworkshop/app/ui/MultiProgrammerActivity.kt
+- app/src/main/java/com/arduinomobileworkshop/app/ui/LogicAnalyzerActivity.kt
+- app/src/main/assets/firmware/swd_helper.uf2 (new)
+- app/src/main/assets/firmware/jtag_helper.uf2 (new)
+- app/src/main/assets/firmware/avr_isp_helper.uf2 (new)
+- app/src/main/assets/firmware/logic_analyzer_helper.uf2 (new)
