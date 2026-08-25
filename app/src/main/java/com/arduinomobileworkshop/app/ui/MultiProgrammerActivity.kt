@@ -54,49 +54,27 @@ class MultiProgrammerActivity : AppCompatActivity() {
         val hookupGuide: String
     ) {
         SWD("SWD", "firmware/swd_helper.uf2",
-            "MODE: SWD (Serial Wire Debug)
-
-" +
-            "Connect Pico GP2 -> Target SWCLK
-" +
-            "Connect Pico GP3 -> Target SWDIO
-" +
-            "Connect Pico GND -> Target GND
-
-" +
+            "MODE: SWD (Serial Wire Debug)\n\n" +
+            "Connect Pico GP2 -> Target SWCLK\n" +
+            "Connect Pico GP3 -> Target SWDIO\n" +
+            "Connect Pico GND -> Target GND\n\n" +
             "Flash helper firmware to prepare the Pico as an SWD programmer."),
         JTAG("JTAG", "firmware/jtag_helper.uf2",
-            "MODE: JTAG
-
-" +
-            "Connect Pico GP2 -> Target TCK
-" +
-            "Connect Pico GP3 -> Target TMS
-" +
-            "Connect Pico GP4 -> Target TDI
-" +
-            "Connect Pico GP5 -> Target TDO
-" +
-            "Connect Pico GND -> Target GND
-
-" +
+            "MODE: JTAG\n\n" +
+            "Connect Pico GP2 -> Target TCK\n" +
+            "Connect Pico GP3 -> Target TMS\n" +
+            "Connect Pico GP4 -> Target TDI\n" +
+            "Connect Pico GP5 -> Target TDO\n" +
+            "Connect Pico GND -> Target GND\n\n" +
             "Flash helper firmware to prepare the Pico as a JTAG programmer."),
         AVR_ISP("AVR-ISP", "firmware/avr_isp_helper.uf2",
-            "MODE: AVR-ISP
-
-" +
-            "Connect Pico GP2 -> Target RESET
-" +
-            "Connect Pico GP3 -> Target SCK
-" +
-            "Connect Pico GP4 -> Target MISO
-" +
-            "Connect Pico GP5 -> Target MOSI
-" +
-            "Connect Pico GND -> Target GND
-
-" +
-            "Flash helper firmware to prepare the Pico as an AVR-ISP programmer.");
+            "MODE: AVR-ISP\n\n" +
+            "Connect Pico GP2 -> Target RESET\n" +
+            "Connect Pico GP3 -> Target SCK\n" +
+            "Connect Pico GP4 -> Target MISO\n" +
+            "Connect Pico GP5 -> Target MOSI\n" +
+            "Connect Pico GND -> Target GND\n\n" +
+            "Flash helper firmware to prepare the Pico as an AVR-ISP programmer.")
     }
 
     private var programmerService: RP2040ProgrammerService? = null
