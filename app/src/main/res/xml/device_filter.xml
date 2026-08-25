@@ -2,7 +2,9 @@
 <!--
     Hardware profile array for USB_DEVICE_ATTACHED. Lists common hobbyist
     microcontrollers by USB vendor ID. Kept in sync with the
-    UsbDeviceReceiver.SUPPORTED_VENDOR_IDS profile.
+    UsbDeviceReceiver.SUPPORTED_VENDOR_IDS profile. The Raspberry Pi Pico
+    BOOTSEL bootrom (VID 11914 / PID 3) is listed explicitly so the app is
+    woken when a Pico attaches in mass-storage / PICOBOOT flashing mode.
 -->
 <resources>
     <!-- Vendor 9025 - Official Arduino (Uno, Leonardo, Mega, CDC/ACM, etc.) -->
@@ -14,6 +16,9 @@
     <!-- Vendor 6790 - Qinheng CH340 / CH341 clones -->
     <usb-device vendor-id="6790" />
 
-    <!-- Vendor 11914 - Raspberry Pi Pico (RP2040) -->
+    <!-- Vendor 11914 - Raspberry Pi Pico (RP2040), any product -->
     <usb-device vendor-id="11914" />
+
+    <!-- Raspberry Pi Pico BOOTSEL bootrom (mass-storage + PICOBOOT) -->
+    <usb-device vendor-id="11914" product-id="3" />
 </resources>

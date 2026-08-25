@@ -14,6 +14,10 @@ import com.arduinomobileworkshop.app.ArduinoMobileWorkshopApp
  * device profile, and hands the connection context off to the application's
  * central USB execution loop ([com.arduinomobileworkshop.usb.UsbManager]).
  *
+ * When a Raspberry Pi Pico attaches in BOOTSEL mode (VID 0x2E8A / PID 0x0003)
+ * it is recognised as a native RP2040 mass-storage / PICOBOOT flashing target
+ * and USB permission is requested so the PICOBOOT bulk interface can be claimed.
+ *
  * The receiver is declared (with a device_filter resource) in the app
  * AndroidManifest so the system delivers attach/detach broadcasts for the
  * supported boards.
@@ -22,6 +26,10 @@ class UsbDeviceReceiver : BroadcastReceiver() {
 
     companion object {
         private const val TAG = "AMW_USB_Receiver"
+
+        /** Raspberry Pi Pico BOOTSEL bootrom device (mass-storage + PICOBOOT). */
+        const val RP2040_VID = 0x2E8A
+        const val RP2040_PID_BOOTLOADER = 0x0003
 
         /**
          * Supported hobbyist microcontroller vendor IDs (decimal).
@@ -49,23 +57,29 @@ class UsbDeviceReceiver : BroadcastReceiver() {
     private fun onDeviceAttached(context: Context, device: UsbDevice) {
         Log.d(
             TAG,
-            "Device attached: ${device.deviceName} vid=${device.vendorId} pid=${device.productId}"
+            "Device attached: " + device.deviceName + " vid=" + device.vendorId + " pid=" + device.productId
         )
         if (!matchesDeviceProfile(device)) {
-            Log.d(TAG, "Ignoring unsupported device (vid=${device.vendorId})")
+            Log.d(TAG, "Ignoring unsupported device (vid=" + device.vendorId + ")")
             return
         }
-        // Pass the connection context directly to the main USB execution loop.
+        // Native RP2040 BOOTSEL target: request permission so the PICOBOOT
+        // interface can be claimed for mass-storage / bulk flashing.
+        if (isRp2040Bootloader(device)) {
+            Log.d(TAG, "RP2040 BOOTSEL bootloader detected (PID 0x0003) - flashing target")
+        }
         val usbManager = ArduinoMobileWorkshopApp.instance.usbManager
         usbManager.onDeviceAttached(device)
-        // Proactively request USB permission for the recognised serial device.
         if (!usbManager.hasPermission(device)) {
             usbManager.requestPermission(device)
         }
     }
 
+    private fun isRp2040Bootloader(device: UsbDevice): Boolean =
+        device.vendorId == RP2040_VID && device.productId == RP2040_PID_BOOTLOADER
+
     private fun onDeviceDetached(context: Context, device: UsbDevice) {
-        Log.d(TAG, "Device detached: ${device.deviceName}")
+        Log.d(TAG, "Device detached: " + device.deviceName)
         ArduinoMobileWorkshopApp.instance.usbManager.onDeviceDetached(device)
     }
 

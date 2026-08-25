@@ -13,7 +13,13 @@ class RP2040Manager(
     
     companion object {
         const val RP2040_VID = 0x2E8A
-        const val RP2040_PID_BOOTLOADER = 0x000A
+        /**
+         * Bootrom BOOTSEL composite device (mass-storage + PICOBOOT). This is the
+         * mode the device enters when held at reset during power-up, and the
+         * product id the PICOBOOT mass-storage flasher targets.
+         */
+        const val RP2040_PID_BOOTLOADER = 0x0003
+        /** Application serial interface (Pico SDK USB CDC default). */
         const val RP2040_PID_SERIAL = 0x000B
         
         const val UF2_MAGIC_START = 0x0A324655
@@ -28,10 +34,10 @@ class RP2040Manager(
     private var isLogicAnalyzerMode = false
     
     /**
-     * Enumerates physical RP2040 devices straight from the Android USB
-     * host descriptor table. A device is recognised when its vendor id is
-     * the Raspberry Pi VID (0x2E8A) and its product id is either the UF2
-     * bootloader (0x000A) or the application serial interface (0x000B).
+     * Enumerates physical RP2040 devices straight from the Android USB host
+     * descriptor table. A device is recognised when its vendor id is the
+     * Raspberry Pi VID (0x2E8A) and its product id is either the BOOTSEL
+     * bootloader (0x0003) or the application serial interface (0x000B).
      */
     fun scanForDevices(): List<UsbDevice> {
         val deviceList = usbManager.deviceList
@@ -40,6 +46,10 @@ class RP2040Manager(
             (device.productId == RP2040_PID_BOOTLOADER || device.productId == RP2040_PID_SERIAL)
         }
     }
+
+    /** Devices currently sitting in BOOTSEL mass-storage / PICOBOOT mode. */
+    fun scanForBootloaderDevices(): List<UsbDevice> =
+        scanForDevices().filter { it.productId == RP2040_PID_BOOTLOADER }
     
     fun connectToDevice(device: UsbDevice): Boolean {
         return try {
@@ -66,8 +76,9 @@ class RP2040Manager(
             usbSerialManager.writeData(byteArrayOf(0x00, 0x01))
             Thread.sleep(1000)
             
-            // The device re-enumerates as the UF2 bootloader; drop the now-stale
-            // serial handle and re-open against the freshly discovered device.
+            // The device re-enumerates as the BOOTSEL bootrom device; drop the
+            // now-stale serial handle and re-open against the freshly discovered
+            // bootloader device.
             usbSerialManager.closeConnection()
             Thread.sleep(500)
             

@@ -32,9 +32,11 @@ import java.io.File
  * Activity for Multi-Programmer mode.
  *
  * Lists physical RP2040 devices discovered through the Android USB host
- * descriptor table (Raspberry Pi vendor id 0x2E8A), lets the user select one
- * or more of them, and streams a chosen UF2 file to each device in turn via
- * [RP2040ProgrammerService].
+ * descriptor table (Raspberry Pi vendor id 0x2E8A), natively targeting
+ * BOOTSEL mass-storage / PICOBOOT bootloader devices (product id 0x0003).
+ * The user selects one or more of them and a chosen UF2 file is streamed to
+ * each device in turn via [RP2040ProgrammerService] over the PICOBOOT bulk
+ * endpoints.
  */
 class MultiProgrammerActivity : AppCompatActivity() {
 
@@ -168,22 +170,24 @@ class MultiProgrammerActivity : AppCompatActivity() {
     }
 
     /**
-     * Real RP2040 enumeration: pulls the live device list from the bound
-     * service (which reads the USB descriptor table and filters by the
-     * Raspberry Pi VID 0x2E8A) and maps each [UsbDevice] into a row.
+     * Real RP2040 enumeration. Natively targets BOOTSEL mass-storage /
+     * PICOBOOT devices (VID 0x2E8A, PID 0x0003) for flashing; if none are in
+     * bootloader mode, the full RP2040 device set is shown so the user can see
+     * serial-mode devices (and a hint to hold BOOTSEL to enter flashing mode).
      */
     private fun scanForDevices() {
         if (!isServiceBound) return
         val service = programmerService ?: return
         Toast.makeText(this, "Scanning for RP2040 devices...", Toast.LENGTH_SHORT).show()
 
-        val usbDevices = service.scanForDevices()
+        val bootDevices = service.scanForBootloaderDevices()
+        val usbDevices = if (bootDevices.isNotEmpty()) bootDevices else service.scanForDevices()
         scannedUsbDevices.clear()
         usbDevices.forEach { scannedUsbDevices[it.deviceName] = it }
 
         val devices = usbDevices.map { d ->
             val inBoot = d.productId == RP2040Manager.RP2040_PID_BOOTLOADER
-            val mode = if (inBoot) "BOOTLOADER" else "SERIAL"
+            val mode = if (inBoot) "BOOTSEL" else "SERIAL"
             val label = (d.productName ?: "RP2040") + " [" + mode + "]"
             DeviceInfo(label, d.deviceName, true, d.productId, inBoot)
         }
@@ -192,9 +196,11 @@ class MultiProgrammerActivity : AppCompatActivity() {
         deviceAdapter.updateDevices(devices)
         updateProgramButton()
         statusTextView.text = if (devices.isEmpty()) {
-            "No RP2040 devices found. Connect one and tap Scan."
+            "No RP2040 devices found. Hold BOOTSEL while plugging in a Pico and tap Scan."
+        } else if (bootDevices.isEmpty()) {
+            "Found " + devices.size + " RP2040 device(s) in serial mode. Hold BOOTSEL to flash."
         } else {
-            "Found " + devices.size + " RP2040 device(s)"
+            "Found " + devices.size + " BOOTSEL device(s) ready to flash."
         }
     }
 

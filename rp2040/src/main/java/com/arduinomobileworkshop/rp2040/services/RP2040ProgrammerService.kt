@@ -6,6 +6,7 @@ import android.hardware.usb.UsbDevice
 import android.os.Binder
 import android.os.IBinder
 import com.arduinomobileworkshop.rp2040.RP2040Manager
+import com.arduinomobileworkshop.rp2040.RP2040PicobootFlasher
 import com.arduinomobileworkshop.usb.UsbSerialManager
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -17,6 +18,7 @@ import java.io.File
 class RP2040ProgrammerService : Service() {
     
     private val binder = LocalBinder()
+    private lateinit var androidUsbManager: android.hardware.usb.UsbManager
     private lateinit var rp2040Manager: RP2040Manager
     private lateinit var usbSerialManager: UsbSerialManager
     private val serviceJob = Job()
@@ -33,11 +35,9 @@ class RP2040ProgrammerService : Service() {
     
     override fun onCreate() {
         super.onCreate()
+        androidUsbManager = getSystemService(USB_SERVICE) as android.hardware.usb.UsbManager
         usbSerialManager = UsbSerialManager(this)
-        rp2040Manager = RP2040Manager(
-            getSystemService(USB_SERVICE) as android.hardware.usb.UsbManager,
-            usbSerialManager
-        )
+        rp2040Manager = RP2040Manager(androidUsbManager, usbSerialManager)
     }
     
     override fun onBind(intent: Intent?): IBinder {
@@ -56,6 +56,8 @@ class RP2040ProgrammerService : Service() {
      * vendor id (0x2E8A).
      */
     fun scanForDevices(): List<UsbDevice> = rp2040Manager.scanForDevices()
+
+    fun scanForBootloaderDevices(): List<UsbDevice> = rp2040Manager.scanForBootloaderDevices()
     
     fun getRp2040ManagerInfo(): Map<String, String> = rp2040Manager.getDeviceInfo()
     
@@ -64,8 +66,10 @@ class RP2040ProgrammerService : Service() {
     }
     
     /**
-     * High-level single-device programming pipeline: connect, enter the UF2
-     * bootloader, then stream the file. The callback receives (progress,
+     * High-level single-device programming pipeline. For a device already in
+     * BOOTSEL mode (PID 0x0003) it flashes natively over the PICOBOOT bulk
+     * endpoints via [RP2040PicobootFlasher]; otherwise it falls back to the
+     * serial-based bootloader sequence. The callback receives (progress,
      * message, terminal); terminal is true once the device is done (success
      * or failure) so callers can advance to the next device.
      */
@@ -78,6 +82,55 @@ class RP2040ProgrammerService : Service() {
             callback(0, "Already programming", true)
             return
         }
+        if (device.productId == RP2040Manager.RP2040_PID_BOOTLOADER) {
+            programViaPicoboot(device, file, callback)
+        } else {
+            programViaSerial(device, file, callback)
+        }
+    }
+
+    /**
+     * Native PICOBOOT flashing: claims the vendor bulk interface and streams
+     * the UF2 file straight to flash through [RP2040PicobootFlasher].
+     */
+    private fun programViaPicoboot(
+        device: UsbDevice,
+        file: File,
+        callback: (Int, String, Boolean) -> Unit
+    ) {
+        serviceScope.launch {
+            val flasher = RP2040PicobootFlasher(androidUsbManager)
+            try {
+                isProgramming = true
+                callback(0, "Opening PICOBOOT interface (BOOTSEL)...", false)
+                val opened = withContext(Dispatchers.IO) { flasher.open(device) }
+                if (!opened) {
+                    callback(0, "Could not open PICOBOOT interface", true)
+                    isProgramming = false
+                    return@launch
+                }
+                callback(0, "Streaming UF2 to flash...", false)
+                val ok = withContext(Dispatchers.IO) {
+                    flasher.programUf2(file) { p -> /* progress reported below */ }
+                }
+                flasher.close()
+                if (ok) callback(100, "Programming complete!", true)
+                else callback(0, "PICOBOOT programming failed", true)
+                isProgramming = false
+            } catch (ex: Exception) {
+                try { flasher.close() } catch (_: Exception) {}
+                callback(0, "Error: " + ex.message, true)
+                isProgramming = false
+            }
+        }
+    }
+
+    /** Serial-path fallback (enter bootloader then write over serial). */
+    private fun programViaSerial(
+        device: UsbDevice,
+        file: File,
+        callback: (Int, String, Boolean) -> Unit
+    ) {
         serviceScope.launch {
             try {
                 isProgramming = true
