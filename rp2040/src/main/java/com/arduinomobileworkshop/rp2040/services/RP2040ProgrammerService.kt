@@ -16,63 +16,50 @@ import kotlinx.coroutines.withContext
 import java.io.File
 
 class RP2040ProgrammerService : Service() {
-    
+
     private val binder = LocalBinder()
     private lateinit var androidUsbManager: android.hardware.usb.UsbManager
     private lateinit var rp2040Manager: RP2040Manager
     private lateinit var usbSerialManager: UsbSerialManager
     private val serviceJob = Job()
     private val serviceScope = CoroutineScope(Dispatchers.Main + serviceJob)
-    
+
     private var isProgramming = false
     private var programmingProgress = 0
     private var currentFile: File? = null
     private var programmingCallback: ((Int, String) -> Unit)? = null
-    
+
     inner class LocalBinder : Binder() {
         fun getService(): RP2040ProgrammerService = this@RP2040ProgrammerService
     }
-    
+
     override fun onCreate() {
         super.onCreate()
         androidUsbManager = getSystemService(USB_SERVICE) as android.hardware.usb.UsbManager
         usbSerialManager = UsbSerialManager(this)
         rp2040Manager = RP2040Manager(androidUsbManager, usbSerialManager)
     }
-    
+
     override fun onBind(intent: Intent?): IBinder {
         return binder
     }
-    
+
     override fun onDestroy() {
         super.onDestroy()
         serviceJob.cancel()
         cancelProgramming()
     }
-    
-    /**
-     * Real RP2040 enumeration: delegates to [RP2040Manager.scanForDevices]
-     * which reads the USB descriptor table and filters by the Raspberry Pi
-     * vendor id (0x2E8A).
-     */
+
     fun scanForDevices(): List<UsbDevice> = rp2040Manager.scanForDevices()
 
     fun scanForBootloaderDevices(): List<UsbDevice> = rp2040Manager.scanForBootloaderDevices()
-    
+
     fun getRp2040ManagerInfo(): Map<String, String> = rp2040Manager.getDeviceInfo()
-    
+
     fun disconnect() {
         rp2040Manager.disconnect()
     }
-    
-    /**
-     * High-level single-device programming pipeline. For a device already in
-     * BOOTSEL mode (PID 0x0003) it flashes natively over the PICOBOOT bulk
-     * endpoints via [RP2040PicobootFlasher]; otherwise it falls back to the
-     * serial-based bootloader sequence. The callback receives (progress,
-     * message, terminal); terminal is true once the device is done (success
-     * or failure) so callers can advance to the next device.
-     */
+
     fun programDevice(
         device: UsbDevice,
         file: File,
@@ -89,10 +76,6 @@ class RP2040ProgrammerService : Service() {
         }
     }
 
-    /**
-     * Native PICOBOOT flashing: claims the vendor bulk interface and streams
-     * the UF2 file straight to flash through [RP2040PicobootFlasher].
-     */
     private fun programViaPicoboot(
         device: UsbDevice,
         file: File,
@@ -111,7 +94,7 @@ class RP2040ProgrammerService : Service() {
                 }
                 callback(0, "Streaming UF2 to flash...", false)
                 val ok = withContext(Dispatchers.IO) {
-                    flasher.programUf2(file) { p -> /* progress reported below */ }
+                    flasher.programUf2(file) { p -> }
                 }
                 flasher.close()
                 if (ok) callback(100, "Programming complete!", true)
@@ -125,7 +108,6 @@ class RP2040ProgrammerService : Service() {
         }
     }
 
-    /** Serial-path fallback (enter bootloader then write over serial). */
     private fun programViaSerial(
         device: UsbDevice,
         file: File,
@@ -163,45 +145,75 @@ class RP2040ProgrammerService : Service() {
             }
         }
     }
-    
+
+    /**
+     * Flashes a helper firmware image embedded in the app assets to prepare
+     * the Pico's state machine for a specific programming mode (SWD, JTAG,
+     * AVR-ISP, Logic Analyzer).  The asset is copied to a temp file and then
+     * streamed to the first available BOOTSEL device via [programDevice].
+     * If [device] is null the service auto-selects the first BOOTSEL device.
+     */
+    fun flashHelperFirmware(assetName: String, device: UsbDevice?, callback: (Boolean, String) -> Unit) {
+        serviceScope.launch {
+            try {
+                val tempFile = File(cacheDir, "helper_" + System.currentTimeMillis() + ".uf2")
+                withContext(Dispatchers.IO) {
+                    assets.open(assetName).use { input ->
+                        tempFile.outputStream().use { input.copyTo(it) }
+                    }
+                }
+                val targetDevice = device ?: withContext(Dispatchers.IO) { scanForBootloaderDevices().firstOrNull() }
+                if (targetDevice == null) {
+                    callback(false, "No BOOTSEL device found. Hold BOOTSEL while plugging in the Pico and try again.")
+                    return@launch
+                }
+                programDevice(targetDevice, tempFile) { _, msg, terminal ->
+                    if (terminal) callback(msg.contains("complete"), msg)
+                }
+            } catch (e: Exception) {
+                callback(false, "Failed to load helper firmware: " + (e.message ?: ""))
+            }
+        }
+    }
+
     fun programFile(file: File, callback: (Int, String) -> Unit) {
         if (isProgramming) {
             callback(0, "Already programming")
             return
         }
-        
+
         currentFile = file
         programmingCallback = callback
-        
+
         serviceScope.launch {
             try {
                 isProgramming = true
                 programmingProgress = 0
-                
+
                 val uf2Data = withContext(Dispatchers.IO) {
                     file.readBytes()
                 }
-                
+
                 if (!rp2040Manager.isInBootloader()) {
                     callback(0, "Device not in bootloader mode")
                     isProgramming = false
                     return@launch
                 }
-                
+
                 callback(0, "Starting programming...")
-                
+
                 val success = rp2040Manager.programFirmware(uf2Data)
-                
+
                 if (success) {
                     programmingProgress = 100
                     callback(100, "Programming complete!")
                 } else {
                     callback(0, "Programming failed")
                 }
-                
+
                 isProgramming = false
                 currentFile = null
-                
+
             } catch (ex: Exception) {
                 callback(0, "Error: " + ex.message)
                 isProgramming = false
@@ -209,18 +221,18 @@ class RP2040ProgrammerService : Service() {
             }
         }
     }
-    
+
     fun cancelProgramming() {
         isProgramming = false
         currentFile = null
         programmingCallback = null
         programmingProgress = 0
-        
+
         serviceScope.launch {
             usbSerialManager.closeConnection()
         }
     }
-    
+
     fun getProgrammingStatus(): Map<String, Any> {
         return mapOf(
             "is_programming" to isProgramming,
@@ -228,7 +240,7 @@ class RP2040ProgrammerService : Service() {
             "current_file" to (currentFile?.name ?: "N/A")
         )
     }
-    
+
     fun enterBootloaderMode(callback: (Boolean, String) -> Unit) {
         serviceScope.launch {
             try {
@@ -239,17 +251,17 @@ class RP2040ProgrammerService : Service() {
             }
         }
     }
-    
+
     fun verifyUf2File(file: File): Boolean {
         return try {
             val bytes = file.readBytes()
             if (bytes.size < 32) return false
-            
+
             val magicStart = (bytes[0].toInt() and 0xFF) or
                            ((bytes[1].toInt() and 0xFF) shl 8) or
                            ((bytes[2].toInt() and 0xFF) shl 16) or
                            ((bytes[3].toInt() and 0xFF) shl 24)
-            
+
             magicStart == RP2040Manager.UF2_MAGIC_START
         } catch (ex: Exception) {
             false

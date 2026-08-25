@@ -5,9 +5,10 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
+    android:fitsSystemWindows="true"
     android:padding="16dp"
     tools:context=".ui.MultiProgrammerActivity">
-    
+
     <TextView
         android:id="@+id/multi_programmer_title"
         android:layout_width="wrap_content"
@@ -18,28 +19,72 @@
         app:layout_constraintLeft_toLeftOf="parent"
         app:layout_constraintRight_toRightOf="parent"
         app:layout_constraintTop_toTopOf="parent" />
-    
+
     <TextView
         android:id="@+id/multi_programmer_status"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginTop="16dp"
+        android:layout_marginTop="8dp"
         android:text="Status: Ready"
-        android:textSize="16sp"
+        android:textSize="14sp"
         app:layout_constraintLeft_toLeftOf="parent"
         app:layout_constraintRight_toRightOf="parent"
         app:layout_constraintTop_toBottomOf="@+id/multi_programmer_title" />
-    
+
+    <TextView
+        android:id="@+id/multi_programmer_mode_label"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="16dp"
+        android:text="Programmer Mode:"
+        android:textSize="16sp"
+        android:textStyle="bold"
+        app:layout_constraintLeft_toLeftOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/multi_programmer_status" />
+
+    <Spinner
+        android:id="@+id/multi_programmer_mode"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="8dp"
+        app:layout_constraintLeft_toRightOf="@+id/multi_programmer_mode_label"
+        app:layout_constraintRight_toRightOf="parent"
+        app:layout_constraintTop_toTopOf="@+id/multi_programmer_mode_label" />
+
+    <TextView
+        android:id="@+id/multi_programmer_hookup_guide"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:padding="12dp"
+        android:background="@color/surface_variant_dark"
+        android:fontFamily="monospace"
+        android:textSize="13sp"
+        android:textColor="@color/on_surface"
+        android:text="Select a programmer mode to see the hookup guide."
+        app:layout_constraintLeft_toLeftOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/multi_programmer_mode_label" />
+
+    <Button
+        android:id="@+id/multi_programmer_prepare"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:text="Prepare Pico (Flash Helper Firmware)"
+        app:layout_constraintLeft_toLeftOf="parent"
+        app:layout_constraintRight_toRightOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/multi_programmer_hookup_guide" />
+
     <TextView
         android:id="@+id/textView_devices"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginTop="32dp"
+        android:layout_marginTop="16dp"
         android:text="Available Devices:"
         android:textSize="18sp"
         app:layout_constraintLeft_toLeftOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/multi_programmer_status" />
-    
+        app:layout_constraintTop_toBottomOf="@+id/multi_programmer_prepare" />
+
     <Button
         android:id="@+id/multi_programmer_scan"
         android:layout_width="wrap_content"
@@ -49,33 +94,32 @@
         app:layout_constraintLeft_toRightOf="@+id/textView_devices"
         app:layout_constraintRight_toRightOf="parent"
         app:layout_constraintTop_toTopOf="@+id/textView_devices" />
-    
+
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/multi_programmer_devices"
         android:layout_width="match_parent"
         android:layout_height="0dp"
-        android:layout_marginTop="16dp"
-        app:layout_constraintBottom_toTopOf="@+id/multi_programmer_program"
-        app:layout_constraintHeight_percent="0.5"
+        android:layout_marginTop="8dp"
+        app:layout_constraintBottom_toTopOf="@+id/multi_programmer_button_container"
         app:layout_constraintTop_toBottomOf="@+id/textView_devices" />
-    
+
     <LinearLayout
         android:id="@+id/multi_programmer_button_container"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="16dp"
+        android:layout_marginTop="8dp"
         android:orientation="horizontal"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintLeft_toLeftOf="parent"
         app:layout_constraintRight_toRightOf="parent">
-        
+
         <Button
             android:id="@+id/multi_programmer_program"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
             android:text="@string/multi_programmer_program" />
-        
+
         <Button
             android:id="@+id/multi_programmer_cancel"
             android:layout_width="0dp"
@@ -84,5 +128,5 @@
             android:layout_weight="1"
             android:text="@string/multi_programmer_configure" />
     </LinearLayout>
-    
+
 </androidx.constraintlayout.widget.ConstraintLayout>

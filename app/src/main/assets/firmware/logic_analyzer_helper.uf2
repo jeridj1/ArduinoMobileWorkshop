@@ -1,0 +1,4 @@
+RP2040 helper firmware - Logic Analyzer mode
+Placeholder UF2 firmware for PICOBOOT flashing.
+Replaces the Pico state machine with a logic analyzer.
+Replace this file with the actual compiled UF2 binary for logic analyzer mode.

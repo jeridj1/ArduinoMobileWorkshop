@@ -16,8 +16,11 @@ import android.os.Bundle
 import android.os.IBinder
 import android.view.Menu
 import android.view.MenuItem
+import android.widget.AdapterView
+import android.widget.ArrayAdapter
 import android.widget.Button
 import android.widget.CheckedTextView
+import android.widget.Spinner
 import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
@@ -34,11 +37,67 @@ import java.io.File
  * Lists physical RP2040 devices discovered through the Android USB host
  * descriptor table (Raspberry Pi vendor id 0x2E8A), natively targeting
  * BOOTSEL mass-storage / PICOBOOT bootloader devices (product id 0x0003).
- * The user selects one or more of them and a chosen UF2 file is streamed to
+ * A mode selector (SWD, JTAG, AVR-ISP) updates a dynamic hookup-guide panel
+ * and the "Prepare Pico" button flashes the matching helper firmware image
+ * to put the Pico into the chosen programmer state machine.
+ *
+ * The user selects one or more devices and a chosen UF2 file is streamed to
  * each device in turn via [RP2040ProgrammerService] over the PICOBOOT bulk
  * endpoints.
  */
 class MultiProgrammerActivity : AppCompatActivity() {
+
+    /** Programmer modes with their hookup guides and helper-firmware assets. */
+    enum class ProgrammerMode(
+        val displayName: String,
+        val assetName: String,
+        val hookupGuide: String
+    ) {
+        SWD("SWD", "firmware/swd_helper.uf2",
+            "MODE: SWD (Serial Wire Debug)
+
+" +
+            "Connect Pico GP2 -> Target SWCLK
+" +
+            "Connect Pico GP3 -> Target SWDIO
+" +
+            "Connect Pico GND -> Target GND
+
+" +
+            "Flash helper firmware to prepare the Pico as an SWD programmer."),
+        JTAG("JTAG", "firmware/jtag_helper.uf2",
+            "MODE: JTAG
+
+" +
+            "Connect Pico GP2 -> Target TCK
+" +
+            "Connect Pico GP3 -> Target TMS
+" +
+            "Connect Pico GP4 -> Target TDI
+" +
+            "Connect Pico GP5 -> Target TDO
+" +
+            "Connect Pico GND -> Target GND
+
+" +
+            "Flash helper firmware to prepare the Pico as a JTAG programmer."),
+        AVR_ISP("AVR-ISP", "firmware/avr_isp_helper.uf2",
+            "MODE: AVR-ISP
+
+" +
+            "Connect Pico GP2 -> Target RESET
+" +
+            "Connect Pico GP3 -> Target SCK
+" +
+            "Connect Pico GP4 -> Target MISO
+" +
+            "Connect Pico GP5 -> Target MOSI
+" +
+            "Connect Pico GND -> Target GND
+
+" +
+            "Flash helper firmware to prepare the Pico as an AVR-ISP programmer.");
+    }
 
     private var programmerService: RP2040ProgrammerService? = null
     private var isServiceBound = false
@@ -48,11 +107,13 @@ class MultiProgrammerActivity : AppCompatActivity() {
     private lateinit var programButton: Button
     private lateinit var cancelButton: Button
     private lateinit var statusTextView: TextView
+    private lateinit var modeSpinner: Spinner
+    private lateinit var hookupGuideView: TextView
+    private lateinit var prepareButton: Button
 
-    /** deviceName -> UsbDevice snapshot taken at the last scan. */
+    private var selectedMode: ProgrammerMode = ProgrammerMode.SWD
+
     private val scannedUsbDevices = mutableMapOf<String, UsbDevice>()
-
-    /** Pending USB-permission grant callback (single in-flight request). */
     private var permissionCallback: ((Boolean) -> Unit)? = null
 
     private val selectedDevices = mutableListOf<DeviceInfo>()
@@ -104,6 +165,9 @@ class MultiProgrammerActivity : AppCompatActivity() {
         programButton = findViewById(R.id.multi_programmer_program)
         cancelButton = findViewById(R.id.multi_programmer_cancel)
         statusTextView = findViewById(R.id.multi_programmer_status)
+        modeSpinner = findViewById(R.id.multi_programmer_mode)
+        hookupGuideView = findViewById(R.id.multi_programmer_hookup_guide)
+        prepareButton = findViewById(R.id.multi_programmer_prepare)
 
         findViewById<Button>(R.id.multi_programmer_scan).setOnClickListener { scanForDevices() }
 
@@ -112,6 +176,19 @@ class MultiProgrammerActivity : AppCompatActivity() {
 
         programButton.setOnClickListener { startProgramming() }
         cancelButton.setOnClickListener { cancelProgramming() }
+
+        val modeNames = ProgrammerMode.entries.map { it.displayName }
+        modeSpinner.adapter = ArrayAdapter(this, android.R.layout.simple_spinner_dropdown_item, modeNames)
+        modeSpinner.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
+            override fun onItemSelected(parent: AdapterView<*>?, view: android.view.View?, position: Int, id: Long) {
+                selectedMode = ProgrammerMode.entries[position]
+                hookupGuideView.text = selectedMode.hookupGuide
+            }
+            override fun onNothingSelected(parent: AdapterView<*>?) {}
+        }
+        hookupGuideView.text = ProgrammerMode.SWD.hookupGuide
+
+        prepareButton.setOnClickListener { preparePico() }
 
         val intent = Intent(this, RP2040ProgrammerService::class.java)
         startService(intent)
@@ -169,12 +246,37 @@ class MultiProgrammerActivity : AppCompatActivity() {
         }
     }
 
-    /**
-     * Real RP2040 enumeration. Natively targets BOOTSEL mass-storage /
-     * PICOBOOT devices (VID 0x2E8A, PID 0x0003) for flashing; if none are in
-     * bootloader mode, the full RP2040 device set is shown so the user can see
-     * serial-mode devices (and a hint to hold BOOTSEL to enter flashing mode).
-     */
+    private fun preparePico() {
+        val service = programmerService
+        if (service == null) {
+            Toast.makeText(this, "Service not connected yet", Toast.LENGTH_SHORT).show()
+            return
+        }
+        val devices = service.scanForBootloaderDevices()
+        if (devices.isEmpty()) {
+            statusTextView.text = "No BOOTSEL device found. Hold BOOTSEL while plugging in the Pico."
+            Toast.makeText(this, "No BOOTSEL device found", Toast.LENGTH_SHORT).show()
+            return
+        }
+        val device = devices[0]
+        ensurePermission(device) { granted ->
+            if (!granted) {
+                statusTextView.text = "USB permission denied for helper firmware"
+                return@ensurePermission
+            }
+            statusTextView.text = "Flashing " + selectedMode.displayName + " helper firmware..."
+            service.flashHelperFirmware(selectedMode.assetName, device) { success, msg ->
+                runOnUiThread {
+                    statusTextView.text = if (success)
+                        selectedMode.displayName + " helper firmware flashed. Pico ready."
+                    else "Helper firmware flash failed: " + msg
+                    Toast.makeText(this, if (success) "Pico prepared" else "Flash failed", Toast.LENGTH_SHORT).show()
+                    scanForDevices()
+                }
+            }
+        }
+    }
+
     private fun scanForDevices() {
         if (!isServiceBound) return
         val service = programmerService ?: return
@@ -299,11 +401,6 @@ class MultiProgrammerActivity : AppCompatActivity() {
         val inBootloader: Boolean = false
     )
 
-    /**
-     * Adapter backed by [selectedDevices] (the activity's selection list). Each
-     * row uses android.R.layout.simple_list_item_multiple_choice, whose root is
-     * a CheckedTextView (id text1); we toggle its checked state directly.
-     */
     inner class DeviceAdapter(
         private val devices: MutableList<DeviceInfo>,
         private val onSelectionChanged: (DeviceInfo, Boolean) -> Unit
