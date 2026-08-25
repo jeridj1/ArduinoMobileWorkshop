@@ -1,5 +1,6 @@
 package com.arduinomobileworkshop.app.ui
 
+import com.arduinomobileworkshop.app.R
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
@@ -119,7 +120,8 @@ class LogicAnalyzerActivity : AppCompatActivity() {
         
         isCapturing = true
         updateUI()
-        Toast.makeText(this, "Capture started", Toast.LENGTH_SHORT).show()
+     
+   Toast.makeText(this, "Capture started", Toast.LENGTH_SHORT).show()
     }
     
     private fun stopCapture() {

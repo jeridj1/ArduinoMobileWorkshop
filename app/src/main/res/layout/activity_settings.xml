@@ -49,11 +49,12 @@
             android:textSize="16sp"
             android:layout_marginTop="16dp" />
         <Spinner
-            android:id="@+id/fontSizeSpinner"
+        
+    android:id="@+id/fontSizeSpinner"
             android:layout_width="match_parent"
             android:layout_height="@dimen/button_height" />
         
-        <com.google.android.material.switch.MaterialSwitch
+        <com.google.android.material.materialswitch.MaterialSwitch
             android:id="@+id/showLineNumbersSwitch"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -61,7 +62,7 @@
             android:textColor="@color/on_surface"
             android:layout_marginTop="16dp" />
         
-        <com.google.android.material.switch.MaterialSwitch
+        <com.google.android.material.materialswitch.MaterialSwitch
             android:id="@+id/autoIndentSwitch"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -85,9 +86,6 @@
         android:textSize="14sp"
         android:padding="16dp"
         app:layout_constraintBottom_toBottomOf="parent">
-        Arduino Mobile Workshop
-Version 0.1.0
-
-An Android-first development environment for Arduino and microcontroller boards.
+        Arduino Mobile WorkshopVersion 0.1.0An Android-first development environment for Arduino and microcontroller boards.
     </TextView>
 </androidx.constraintlayout.widget.ConstraintLayout>

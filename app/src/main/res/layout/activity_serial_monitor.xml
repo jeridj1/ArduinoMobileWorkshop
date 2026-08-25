@@ -93,7 +93,8 @@
             android:layout_width="wrap_content"
             android:layout_height="@dimen/button_height"
             android:text="Send"
-            android:textAllCaps="false" />
+ 
+           android:textAllCaps="false" />
         <com.google.android.material.button.MaterialButton
             android:id="@+id/clearButton"
             android:layout_width="wrap_content"
@@ -102,7 +103,7 @@
             android:textAllCaps="false" />
     </LinearLayout>
     
-    <com.google.android.material.switch.MaterialSwitch
+    <com.google.android.material.materialswitch.MaterialSwitch
         android:id="@+id/autoScrollSwitch"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"

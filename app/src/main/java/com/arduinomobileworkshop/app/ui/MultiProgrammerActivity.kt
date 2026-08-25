@@ -1,5 +1,6 @@
 package com.arduinomobileworkshop.app.ui
 
+import com.arduinomobileworkshop.app.R
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
@@ -51,6 +52,7 @@ class MultiProgrammerActivity : AppCompatActivity() {
             val binder = service as RP2040ProgrammerService.LocalBinder
             programmerService = binder.getService()
             isServiceBound = true
+
             scanForDevices()
         }
 
@@ -107,7 +109,8 @@ class MultiProgrammerActivity : AppCompatActivity() {
         Toast.makeText(this, "Scanning for RP2040 devices...", Toast.LENGTH_SHORT).show()
 
         // Mocked device list until real RP2040 USB enumeration is wired in.
-        val devices = listOf(
+        val devices =
+ listOf(
             DeviceInfo("Device 1", "RP2040-001", true),
             DeviceInfo("Device 2", "RP2040-002", true),
             DeviceInfo("Device 3", "RP2040-003", true)
