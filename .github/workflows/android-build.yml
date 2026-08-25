@@ -45,6 +45,9 @@ jobs:
         run: |
           ./gradlew clean assembleDebug --stacktrace --no-daemon 2>&1 | tee build.log
           test -s app/build/outputs/apk/debug/app-debug.apk
+      - name: Run unit tests
+        run: |
+          ./gradlew testDebugUnitTest --stacktrace --continue --no-daemon 2>&1 | tee -a build.log
       - name: Verify APK exists
         run: test -s app/build/outputs/apk/debug/app-debug.apk
       - name: Upload APK
@@ -61,6 +64,7 @@ jobs:
           path: build.log
           if-no-files-found: warn
       - name: Report build failure as issue
+
         if: failure()
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

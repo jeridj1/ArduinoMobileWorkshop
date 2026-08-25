@@ -19,6 +19,12 @@ android {
     kotlinOptions {
         jvmTarget = "17"
     }
+
+    testOptions {
+        unitTests {
+            isReturnDefaultValues = true
+        }
+    }
 }
 
 dependencies {
@@ -26,4 +32,6 @@ dependencies {
     // Standard USB-serial drivers for CH340, CP2102, FTDI, CDC/ACM (Arduino), etc.
     // Pulled from JitPack (declared in settings.gradle.kts dependencyResolutionManagement).
     implementation("com.github.mik3y:usb-serial-for-android:3.8.0")
+    testImplementation("junit:junit:4.13.2")
+    testImplementation("org.mockito.kotlin:mockito-kotlin:5.4.0")
 }
