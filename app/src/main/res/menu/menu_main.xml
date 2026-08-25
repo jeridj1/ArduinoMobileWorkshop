@@ -10,7 +10,7 @@
     
     <item
         android:id="@+id/action_open"
-        android:icon="@android:drawable/ic_menu_open"
+        android:icon="@drawable/ic_file"
         android:title="@string/menu_open"
         app:showAsAction="ifRoom"/>
     
@@ -28,7 +28,7 @@
     
     <item
         android:id="@+id/action_upload"
-        android:icon="@android:drawable/ic_menu_upload"
+        android:icon="@android:drawable/ic_menu_send"
         android:title="@string/menu_upload"
         app:showAsAction="ifRoom"/>
     
