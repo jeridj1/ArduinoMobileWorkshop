@@ -21,7 +21,10 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v6
         with:
-          go-version: '1.24.x'
+          # arduino-cli-android's go.mod requires Go >= 1.26.1. Pin to the
+          # latest stable release so the cross-compile step resolves.
+          go-version: '1.26.1'
+          check-latest: true
       - name: Build Android Arduino CLI
         run: |
           git clone --depth 1 https://github.com/ipodvideo87/arduino-cli-android.git /tmp/arduino-cli-android
