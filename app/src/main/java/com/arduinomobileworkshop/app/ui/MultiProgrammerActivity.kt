@@ -1,11 +1,17 @@
 package com.arduinomobileworkshop.app.ui
 
+import com.arduinomobileworkshop.app.ArduinoMobileWorkshopApp
 import com.arduinomobileworkshop.app.R
+import android.content.BroadcastReceiver
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.content.ServiceConnection
+import android.hardware.usb.UsbDevice
+import android.hardware.usb.UsbManager as AndroidUsbManager
 import android.net.Uri
+import android.os.Build
 import android.os.Bundle
 import android.os.IBinder
 import android.view.Menu
@@ -14,20 +20,21 @@ import android.widget.Button
 import android.widget.CheckedTextView
 import android.widget.TextView
 import android.widget.Toast
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import com.arduinomobileworkshop.rp2040.RP2040Manager
 import com.arduinomobileworkshop.rp2040.services.RP2040ProgrammerService
 import java.io.File
 
 /**
  * Activity for Multi-Programmer mode.
  *
- * Allows programming multiple RP2040 devices simultaneously. Supports selecting
- * multiple devices, programming with UF2 files, and progress tracking.
- *
- * NOTE: device discovery is still mocked (returns placeholder devices) until the
- * real RP2040 USB enumeration is wired in.
+ * Lists physical RP2040 devices discovered through the Android USB host
+ * descriptor table (Raspberry Pi vendor id 0x2E8A), lets the user select one
+ * or more of them, and streams a chosen UF2 file to each device in turn via
+ * [RP2040ProgrammerService].
  */
 class MultiProgrammerActivity : AppCompatActivity() {
 
@@ -39,6 +46,12 @@ class MultiProgrammerActivity : AppCompatActivity() {
     private lateinit var programButton: Button
     private lateinit var cancelButton: Button
     private lateinit var statusTextView: TextView
+
+    /** deviceName -> UsbDevice snapshot taken at the last scan. */
+    private val scannedUsbDevices = mutableMapOf<String, UsbDevice>()
+
+    /** Pending USB-permission grant callback (single in-flight request). */
+    private var permissionCallback: ((Boolean) -> Unit)? = null
 
     private val selectedDevices = mutableListOf<DeviceInfo>()
 
@@ -52,13 +65,32 @@ class MultiProgrammerActivity : AppCompatActivity() {
             val binder = service as RP2040ProgrammerService.LocalBinder
             programmerService = binder.getService()
             isServiceBound = true
-
             scanForDevices()
         }
 
         override fun onServiceDisconnected(arg0: ComponentName) {
             isServiceBound = false
             programmerService = null
+        }
+    }
+
+    private val usbPermissionReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context, intent: Intent) {
+            if (intent.action != com.arduinomobileworkshop.usb.UsbManager.ACTION_USB_PERMISSION) return
+            val granted = intent.getBooleanExtra(AndroidUsbManager.EXTRA_PERMISSION_GRANTED, false)
+            val cb = permissionCallback
+            permissionCallback = null
+            cb?.invoke(granted)
+        }
+    }
+
+    private val uf2Picker = registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        if (uri == null) return@registerForActivityResult
+        val file = copyUriToCache(uri)
+        if (file != null) {
+            programSelectedDevices(file)
+        } else {
+            Toast.makeText(this, "Failed to load UF2 file", Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -71,6 +103,8 @@ class MultiProgrammerActivity : AppCompatActivity() {
         cancelButton = findViewById(R.id.multi_programmer_cancel)
         statusTextView = findViewById(R.id.multi_programmer_status)
 
+        findViewById<Button>(R.id.multi_programmer_scan).setOnClickListener { scanForDevices() }
+
         deviceRecyclerView.layoutManager = LinearLayoutManager(this)
         deviceRecyclerView.adapter = deviceAdapter
 
@@ -80,6 +114,21 @@ class MultiProgrammerActivity : AppCompatActivity() {
         val intent = Intent(this, RP2040ProgrammerService::class.java)
         startService(intent)
         bindService(intent, serviceConnection, Context.BIND_AUTO_CREATE)
+    }
+
+    override fun onStart() {
+        super.onStart()
+        val filter = IntentFilter(com.arduinomobileworkshop.usb.UsbManager.ACTION_USB_PERMISSION)
+        if (Build.VERSION.SDK_INT >= 26) {
+            registerReceiver(usbPermissionReceiver, filter, Context.RECEIVER_NOT_EXPORTED)
+        } else {
+            registerReceiver(usbPermissionReceiver, filter)
+        }
+    }
+
+    override fun onStop() {
+        super.onStop()
+        try { unregisterReceiver(usbPermissionReceiver) } catch (_: Exception) {}
     }
 
     override fun onDestroy() {
@@ -100,42 +149,122 @@ class MultiProgrammerActivity : AppCompatActivity() {
         return when (item.itemId) {
             android.R.id.home -> { onBackPressedDispatcher.onBackPressed(); true }
             R.id.action_scan -> { scanForDevices(); true }
+            R.id.action_select_all -> {
+                selectedDevices.clear()
+                selectedDevices.addAll(deviceAdapter.currentList())
+                deviceAdapter.notifyDataSetChanged()
+                updateProgramButton()
+                true
+            }
+            R.id.action_deselect_all -> {
+                selectedDevices.clear()
+                deviceAdapter.notifyDataSetChanged()
+                updateProgramButton()
+                true
+            }
+            R.id.action_add_file -> { startProgramming(); true }
             else -> super.onOptionsItemSelected(item)
         }
     }
 
+    /**
+     * Real RP2040 enumeration: pulls the live device list from the bound
+     * service (which reads the USB descriptor table and filters by the
+     * Raspberry Pi VID 0x2E8A) and maps each [UsbDevice] into a row.
+     */
     private fun scanForDevices() {
         if (!isServiceBound) return
+        val service = programmerService ?: return
         Toast.makeText(this, "Scanning for RP2040 devices...", Toast.LENGTH_SHORT).show()
 
-        // Mocked device list until real RP2040 USB enumeration is wired in.
-        val devices =
- listOf(
-            DeviceInfo("Device 1", "RP2040-001", true),
-            DeviceInfo("Device 2", "RP2040-002", true),
-            DeviceInfo("Device 3", "RP2040-003", true)
-        )
+        val usbDevices = service.scanForDevices()
+        scannedUsbDevices.clear()
+        usbDevices.forEach { scannedUsbDevices[it.deviceName] = it }
+
+        val devices = usbDevices.map { d ->
+            val inBoot = d.productId == RP2040Manager.RP2040_PID_BOOTLOADER
+            val mode = if (inBoot) "BOOTLOADER" else "SERIAL"
+            val label = (d.productName ?: "RP2040") + " [" + mode + "]"
+            DeviceInfo(label, d.deviceName, true, d.productId, inBoot)
+        }
+
+        selectedDevices.clear()
         deviceAdapter.updateDevices(devices)
-        statusTextView.text = "Found " + devices.size + " devices"
+        updateProgramButton()
+        statusTextView.text = if (devices.isEmpty()) {
+            "No RP2040 devices found. Connect one and tap Scan."
+        } else {
+            "Found " + devices.size + " RP2040 device(s)"
+        }
     }
 
     private fun startProgramming() {
-        if (!isServiceBound || selectedDevices.isEmpty()) return
+        if (!isServiceBound || selectedDevices.isEmpty()) {
+            Toast.makeText(this, "Select at least one device first", Toast.LENGTH_SHORT).show()
+            return
+        }
+        uf2Picker.launch(arrayOf("*/*"))
+    }
+
+    private fun copyUriToCache(uri: Uri): File? {
+        return try {
+            val out = File(cacheDir, "program_" + System.currentTimeMillis() + ".uf2")
+            contentResolver.openInputStream(uri)?.use { input ->
+                out.outputStream().use { input.copyTo(it) }
+            } ?: return null
+            out
+        } catch (e: Exception) {
+            null
+        }
+    }
+
+    private fun ensurePermission(device: UsbDevice, callback: (Boolean) -> Unit) {
+        val appUsbManager = (application as ArduinoMobileWorkshopApp).usbManager
+        if (appUsbManager.hasPermission(device)) {
+            callback(true)
+            return
+        }
+        permissionCallback = callback
+        appUsbManager.requestPermission(device)
+    }
+
+    private fun programSelectedDevices(uf2File: File) {
+        val service = programmerService
+        if (service == null || selectedDevices.isEmpty()) return
         isProgramming = true
         updateUI()
-        statusTextView.text = "Programming " + selectedDevices.size + " devices..."
+        val queue = selectedDevices.toList()
+        statusTextView.text = "Programming " + queue.size + " device(s)..."
 
-        // Mocked programming sequence.
-        var progress = 0
-        selectedDevices.forEachIndexed { index, device ->
-            progress = ((index + 1) * 100 / selectedDevices.size)
-            statusTextView.text = "Programming device " + device.name + "... (" + progress + "%)"
+        fun programNext(index: Int) {
+            if (index >= queue.size) {
+                isProgramming = false
+                updateUI()
+                statusTextView.text = "Programming complete!"
+                Toast.makeText(this@MultiProgrammerActivity, "All devices programmed", Toast.LENGTH_SHORT).show()
+                scanForDevices()
+                return
+            }
+            val info = queue[index]
+            val usbDevice = scannedUsbDevices[info.id]
+            if (usbDevice == null) {
+                statusTextView.text = info.name + " no longer connected"
+                programNext(index + 1)
+                return
+            }
+            ensurePermission(usbDevice) { granted ->
+                if (!granted) {
+                    statusTextView.text = "Permission denied: " + info.name
+                    programNext(index + 1)
+                    return@ensurePermission
+                }
+                service.programDevice(usbDevice, uf2File) { progress, msg, terminal ->
+                    statusTextView.text = info.name + ": " + msg
+                    if (terminal) programNext(index + 1)
+                }
+            }
         }
-
-        isProgramming = false
-        updateUI()
-        statusTextView.text = "Programming complete!"
-        Toast.makeText(this, "All devices programmed", Toast.LENGTH_SHORT).show()
+        programNext(0)
     }
 
     private fun cancelProgramming() {
@@ -159,14 +288,15 @@ class MultiProgrammerActivity : AppCompatActivity() {
     data class DeviceInfo(
         val name: String,
         val id: String,
-        val isRp2040: Boolean
+        val isRp2040: Boolean,
+        val productId: Int = 0,
+        val inBootloader: Boolean = false
     )
 
     /**
      * Adapter backed by [selectedDevices] (the activity's selection list). Each
-     * row uses android.R.layout.simple_list_item_multiple_choice, whose root is a
-     * CheckedTextView (id text1); we toggle its checked state directly instead of
-     * looking up a separate CheckBox view.
+     * row uses android.R.layout.simple_list_item_multiple_choice, whose root is
+     * a CheckedTextView (id text1); we toggle its checked state directly.
      */
     inner class DeviceAdapter(
         private val devices: MutableList<DeviceInfo>,
@@ -178,6 +308,8 @@ class MultiProgrammerActivity : AppCompatActivity() {
             devices.addAll(newDevices)
             notifyDataSetChanged()
         }
+
+        fun currentList(): List<DeviceInfo> = devices.toList()
 
         override fun onCreateViewHolder(parent: android.view.ViewGroup, viewType: Int): DeviceViewHolder {
             val view = layoutInflater.inflate(

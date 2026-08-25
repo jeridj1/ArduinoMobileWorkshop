@@ -2,6 +2,7 @@ package com.arduinomobileworkshop.rp2040.services
 
 import android.app.Service
 import android.content.Intent
+import android.hardware.usb.UsbDevice
 import android.os.Binder
 import android.os.IBinder
 import com.arduinomobileworkshop.rp2040.RP2040Manager
@@ -47,6 +48,67 @@ class RP2040ProgrammerService : Service() {
         super.onDestroy()
         serviceJob.cancel()
         cancelProgramming()
+    }
+    
+    /**
+     * Real RP2040 enumeration: delegates to [RP2040Manager.scanForDevices]
+     * which reads the USB descriptor table and filters by the Raspberry Pi
+     * vendor id (0x2E8A).
+     */
+    fun scanForDevices(): List<UsbDevice> = rp2040Manager.scanForDevices()
+    
+    fun getRp2040ManagerInfo(): Map<String, String> = rp2040Manager.getDeviceInfo()
+    
+    fun disconnect() {
+        rp2040Manager.disconnect()
+    }
+    
+    /**
+     * High-level single-device programming pipeline: connect, enter the UF2
+     * bootloader, then stream the file. The callback receives (progress,
+     * message, terminal); terminal is true once the device is done (success
+     * or failure) so callers can advance to the next device.
+     */
+    fun programDevice(
+        device: UsbDevice,
+        file: File,
+        callback: (progress: Int, message: String, terminal: Boolean) -> Unit
+    ) {
+        if (isProgramming) {
+            callback(0, "Already programming", true)
+            return
+        }
+        serviceScope.launch {
+            try {
+                isProgramming = true
+                callback(0, "Connecting to " + device.deviceName, false)
+                val connected = rp2040Manager.connectToDevice(device)
+                if (!connected) {
+                    callback(0, "Connect failed", true)
+                    isProgramming = false
+                    return@launch
+                }
+                callback(0, "Entering bootloader mode...", false)
+                val boot = rp2040Manager.enterBootloaderMode()
+                if (!boot) {
+                    rp2040Manager.disconnect()
+                    callback(0, "Bootloader failed", true)
+                    isProgramming = false
+                    return@launch
+                }
+                val uf2Data = withContext(Dispatchers.IO) { file.readBytes() }
+                callback(0, "Starting programming...", false)
+                val success = rp2040Manager.programFirmware(uf2Data)
+                rp2040Manager.disconnect()
+                if (success) callback(100, "Programming complete!", true)
+                else callback(0, "Programming failed", true)
+                isProgramming = false
+            } catch (ex: Exception) {
+                try { rp2040Manager.disconnect() } catch (_: Exception) {}
+                callback(0, "Error: " + ex.message, true)
+                isProgramming = false
+            }
+        }
     }
     
     fun programFile(file: File, callback: (Int, String) -> Unit) {

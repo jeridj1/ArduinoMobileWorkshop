@@ -27,6 +27,12 @@ class RP2040Manager(
     private var isInBootloaderMode = false
     private var isLogicAnalyzerMode = false
     
+    /**
+     * Enumerates physical RP2040 devices straight from the Android USB
+     * host descriptor table. A device is recognised when its vendor id is
+     * the Raspberry Pi VID (0x2E8A) and its product id is either the UF2
+     * bootloader (0x000A) or the application serial interface (0x000B).
+     */
     fun scanForDevices(): List<UsbDevice> {
         val deviceList = usbManager.deviceList
         return deviceList.values.filter { device ->
@@ -60,10 +66,17 @@ class RP2040Manager(
             usbSerialManager.writeData(byteArrayOf(0x00, 0x01))
             Thread.sleep(1000)
             
+            // The device re-enumerates as the UF2 bootloader; drop the now-stale
+            // serial handle and re-open against the freshly discovered device.
+            usbSerialManager.closeConnection()
+            Thread.sleep(500)
+            
             val devices = scanForDevices()
-            if (devices.isNotEmpty()) {
-                connectedDevice = devices.first()
+            val bootDevice = devices.firstOrNull { it.productId == RP2040_PID_BOOTLOADER }
+            if (bootDevice != null) {
+                connectedDevice = bootDevice
                 isInBootloaderMode = true
+                usbSerialManager.openConnection(bootDevice)
                 return@withContext true
             }
             return@withContext false
