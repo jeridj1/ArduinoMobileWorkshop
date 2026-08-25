@@ -62,33 +62,36 @@ jobs:
           if-no-files-found: warn
       - name: Report build failure as issue
         if: failure()
-        uses: actions/github-script@v7
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          script: |
-            const fs = require('fs');
-            let log = '';
-            try { log = fs.readFileSync('build.log', 'utf8'); } catch (e) {
-              core.warning('build.log not found: ' + e.message);
-            }
-            const tail = log.split('\n').slice(-150).join('\n');
-            const runUrl = `${context.payload.repository.html_url}/actions/runs/${context.runId}`;
-            const cliNote = ${{ steps.build_cli.outcome == 'failure' }} ? '\n\nNote: the arduino-cli Go cross-compile step failed or timed out (continue-on-error); the APK build below ran independently.\n' : '';
-            const body = [
-              'CI build failed on commit ' + context.sha.slice(0,7) + ' (' + context.sha + ').',
-              cliNote,
-              'Last ~150 lines of the Gradle build log:',
-              '',
-              '```',
-              tail,
-              '```',
-              '',
-              '[Failed workflow run](' + runUrl + ')'
-            ].join('\n');
-            await github.rest.issues.create({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              title: 'CI build failed: ' + context.sha.slice(0, 7),
-              body: body,
-              labels: ['ci-failure']
-            });
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CLI_OUTCOME: ${{ steps.build_cli.outcome }}
+        run: |
+          set -e
+          ERRORS="$(grep -E '^e: ' build.log || true)"
+          OTHER="$(grep -Ei 'error:|FAILED' build.log | grep -vE '^e: ' || true)"
+          TAIL="$(tail -n 120 build.log || true)"
+          {
+            echo "CI build failed on commit ${GITHUB_SHA::7} (${GITHUB_SHA})."
+            echo
+            if [ "$CLI_OUTCOME" = "failure" ]; then
+              echo "Note: the arduino-cli Go cross-compile step failed or timed out (continue-on-error); the APK build below ran independently."
+              echo
+            fi
+            echo "Kotlin compiler errors:"
+            echo '```'
+            printf '%s\n' "$ERRORS"
+            echo '```'
+            echo
+            echo "Other notable lines:"
+            echo '```'
+            printf '%s\n' "$OTHER"
+            echo '```'
+            echo
+            echo "Last ~120 lines of the Gradle build log:"
+            echo '```'
+            printf '%s\n' "$TAIL"
+            echo '```'
+            echo
+            echo "Failed workflow run: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+          } > /tmp/issue_body.md
+          gh issue create --title "CI build failed: ${GITHUB_SHA::7}" --body-file /tmp/issue_body.md --label ci-failure
