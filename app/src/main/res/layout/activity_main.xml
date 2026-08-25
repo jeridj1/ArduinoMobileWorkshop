@@ -1,17 +1,79 @@
 <?xml version="1.0" encoding="utf-8"?>
-<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android" xmlns:app="http://schemas.android.com/apk/res-auto" android:layout_width="match_parent" android:layout_height="match_parent" android:padding="16dp">
+<!--
+    Main launcher screen.
+
+    ConstraintLayout root (fitsSystemWindows) with a Toolbar pinned to the top
+    and the rest of the content inside a NestedScrollView so the button grid can
+    scroll instead of being clipped off the bottom when the soft keyboard or
+    system gesture bars expand. Fixed margins are avoided in favour of the scroll
+    container, which keeps every entry reachable on small screens.
+-->
+<androidx.constraintlayout.widget.ConstraintLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:fitsSystemWindows="true">
+
     <androidx.appcompat.widget.Toolbar
-        android:id="@+id/toolbar" android:layout_width="match_parent" android:layout_height="?attr/actionBarSize"
-        android:background="?attr/colorPrimary" app:layout_constraintTop_toTopOf="parent" app:layout_constraintLeft_toLeftOf="parent" app:layout_constraintRight_toRightOf="parent" />
-    <TextView android:id="@+id/welcome_text" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="16dp" android:text="Arduino Mobile Workshop" android:textSize="24sp" android:textStyle="bold" app:layout_constraintTop_toBottomOf="@id/toolbar" app:layout_constraintLeft_toLeftOf="parent" app:layout_constraintRight_toRightOf="parent" />
-    <Button android:id="@+id/btn_editor" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_marginTop="12dp" android:text="Code Editor" android:textAllCaps="false" app:layout_constraintTop_toBottomOf="@id/welcome_text" app:layout_constraintLeft_toLeftOf="parent" app:layout_constraintRight_toRightOf="parent" />
-    <GridLayout android:id="@+id/features_grid" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="12dp" android:columnCount="2" android:rowCount="4" app:layout_constraintTop_toBottomOf="@id/btn_editor" app:layout_constraintLeft_toLeftOf="parent" app:layout_constraintRight_toRightOf="parent">
-        <Button android:id="@+id/btn_serial_monitor" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_columnWeight="1" android:layout_margin="6dp" android:text="Serial Monitor" android:textAllCaps="false" />
-        <Button android:id="@+id/btn_boards_manager" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_columnWeight="1" android:layout_margin="6dp" android:text="Boards Manager" android:textAllCaps="false" />
-        <Button android:id="@+id/btn_library_manager" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_columnWeight="1" android:layout_margin="6dp" android:text="Library Manager" android:textAllCaps="false" />
-        <Button android:id="@+id/btn_file_picker" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_columnWeight="1" android:layout_margin="6dp" android:text="Projects" android:textAllCaps="false" />
-        <Button android:id="@+id/btn_logic_analyzer" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_columnWeight="1" android:layout_margin="6dp" android:text="Logic Analyzer" android:textAllCaps="false" />
-        <Button android:id="@+id/btn_multi_programmer" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_columnWeight="1" android:layout_margin="6dp" android:text="Multi-Programmer" android:textAllCaps="false" />
-        <Button android:id="@+id/btn_settings" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_columnWeight="1" android:layout_margin="6dp" android:text="Settings" android:textAllCaps="false" />
-    </GridLayout>
+        android:id="@+id/toolbar"
+        android:layout_width="0dp"
+        android:layout_height="?attr/actionBarSize"
+        android:background="?attr/colorPrimary"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintLeft_toLeftOf="parent"
+        app:layout_constraintRight_toRightOf="parent" />
+
+    <androidx.core.widget.NestedScrollView
+        android:id="@+id/main_scroll"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:fillViewport="true"
+        app:layout_constraintTop_toBottomOf="@id/toolbar"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintLeft_toLeftOf="parent"
+        app:layout_constraintRight_toRightOf="parent">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:padding="16dp">
+
+            <TextView
+                android:id="@+id/welcome_text"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:text="Arduino Mobile Workshop"
+                android:textSize="24sp"
+                android:textStyle="bold"
+                android:layout_gravity="center_horizontal" />
+
+            <Button
+                android:id="@+id/btn_editor"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:text="Code Editor"
+                android:textAllCaps="false" />
+
+            <GridLayout
+                android:id="@+id/features_grid"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:columnCount="2"
+                android:rowCount="4">
+                <Button android:id="@+id/btn_serial_monitor" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_columnWeight="1" android:layout_margin="6dp" android:text="Serial Monitor" android:textAllCaps="false" />
+                <Button android:id="@+id/btn_boards_manager" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_columnWeight="1" android:layout_margin="6dp" android:text="Boards Manager" android:textAllCaps="false" />
+                <Button android:id="@+id/btn_library_manager" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_columnWeight="1" android:layout_margin="6dp" android:text="Library Manager" android:textAllCaps="false" />
+                <Button android:id="@+id/btn_file_picker" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_columnWeight="1" android:layout_margin="6dp" android:text="Projects" android:textAllCaps="false" />
+                <Button android:id="@+id/btn_logic_analyzer" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_columnWeight="1" android:layout_margin="6dp" android:text="Logic Analyzer" android:textAllCaps="false" />
+                <Button android:id="@+id/btn_multi_programmer" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_columnWeight="1" android:layout_margin="6dp" android:text="Multi-Programmer" android:textAllCaps="false" />
+                <Button android:id="@+id/btn_settings" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_columnWeight="1" android:layout_margin="6dp" android:text="Settings" android:textAllCaps="false" />
+            </GridLayout>
+        </LinearLayout>
+    </androidx.core.widget.NestedScrollView>
+
 </androidx.constraintlayout.widget.ConstraintLayout>

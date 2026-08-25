@@ -4,9 +4,11 @@ import android.content.Context
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
+import android.view.View
 import android.widget.ArrayAdapter
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.widget.NestedScrollView
 import com.arduinomobileworkshop.app.ArduinoMobileWorkshopApp
 import com.arduinomobileworkshop.app.databinding.ActivitySerialMonitorBinding
 import com.arduinomobileworkshop.usb.SerialPortManager
@@ -54,6 +56,15 @@ class SerialMonitorActivity : AppCompatActivity() {
             if (actionId == android.view.inputmethod.EditorInfo.IME_ACTION_SEND) { sendData(); true } else false
         }
         binding.autoScrollSwitch.setOnCheckedChangeListener { _, checked -> isAutoScroll = checked }
+        // Stick to the bottom while streaming: re-enable auto-scroll whenever the
+        // user scrolls back to the bottom, and disable it when they scroll up.
+        binding.serialOutputScroll.setOnScrollChangeListener { v: NestedScrollView, _, _, _, _ ->
+            val atBottom = !v.canScrollVertically(View.FOCUS_DOWN)
+            if (atBottom != isAutoScroll) {
+                isAutoScroll = atBottom
+                binding.autoScrollSwitch.isChecked = atBottom
+            }
+        }
     }
 
     private fun connect() {
@@ -73,12 +84,12 @@ class SerialMonitorActivity : AppCompatActivity() {
         isConnected = true
         serialPort!!.addListener(object : SerialPortManager.SerialPortListener {
             override fun onDataReceived(data: ByteArray) = runOnUiThread { appendOutput(String(data, Charsets.UTF_8)) }
-            override fun onError(error: String) = runOnUiThread { showToast("Error: $error"); disconnect() }
+            override fun onError(error: String) = runOnUiThread { showToast("Error: " + error); disconnect() }
         })
         serialPort!!.startReceiving()
         updateUiState()
-        showToast("Connected to ${device.deviceName}")
-        appendOutput("Connected to ${device.deviceName} at $baudRate baud\n")
+        showToast("Connected to " + device.deviceName)
+        appendOutput("Connected to " + device.deviceName + " at " + baudRate + " baud\n")
     }
 
     private fun disconnect() {
@@ -104,7 +115,7 @@ class SerialMonitorActivity : AppCompatActivity() {
         }
         val data = (text + newline).toByteArray()
         if (port.write(data) > 0) {
-            appendOutput(">> $text$newline")
+            appendOutput(">> " + text + newline)
             binding.inputField.text?.clear()
             val imm = getSystemService(Context.INPUT_METHOD_SERVICE) as android.view.inputmethod.InputMethodManager
             imm.hideSoftInputFromWindow(binding.inputField.windowToken, 0)
@@ -116,10 +127,15 @@ class SerialMonitorActivity : AppCompatActivity() {
         if (isAutoScroll) scrollToBottom()
     }
 
+    /**
+     * Stick to the bottom of the log during active streams. Posted to the view
+     * so the layout is measured before the scroll, and uses the NestedScrollView
+     * fullScroll rather than TextView line math for reliable bottom-tracking.
+     */
     private fun scrollToBottom() {
-        val layout = binding.serialOutput.layout ?: return
-        val scrollAmount = layout.getLineTop(binding.serialOutput.lineCount) - binding.serialOutput.height
-        if (scrollAmount > 0) binding.serialOutput.scrollTo(0, scrollAmount)
+        binding.serialOutputScroll.post {
+            if (isAutoScroll) binding.serialOutputScroll.fullScroll(View.FOCUS_DOWN)
+        }
     }
 
     private fun getSelectedBaudRate() = baudRates[binding.baudRateSpinner.selectedItemPosition]
