@@ -48,8 +48,7 @@ import java.io.File
 class MultiProgrammerActivity : AppCompatActivity() {
 
     /** Programmer modes with their hookup guides and helper-firmware assets. */
-    enum c
-lass ProgrammerMode(
+    enum class ProgrammerMode(
         val displayName: String,
         val assetName: String,
         val hookupGuide: String
@@ -100,8 +99,7 @@ lass ProgrammerMode(
     private val scannedUsbDevices = mutableMapOf<String, UsbDevice>()
     private var permissionCallback: ((Boolean) -> Unit)? = null
 
-    private v
-al selectedDevices = mutableListOf<DeviceInfo>()
+    private val selectedDevices = mutableListOf<DeviceInfo>()
 
     private val deviceAdapter = DeviceAdapter(selectedDevices) { device, isSelected ->
         if (isSelected) selectedDevices.add(device) else selectedDevices.remove(device)
@@ -149,8 +147,7 @@ al selectedDevices = mutableListOf<DeviceInfo>()
         deviceRecyclerView = findViewById(R.id.multi_programmer_devices)
         programButton = findViewById(R.id.multi_programmer_program)
         cancelButton = findViewById(R.id.multi_programmer_cancel)
-        
-statusTextView = findViewById(R.id.multi_programmer_status)
+        statusTextView = findViewById(R.id.multi_programmer_status)
         modeSpinner = findViewById(R.id.multi_programmer_mode)
         hookupGuideView = findViewById(R.id.multi_programmer_hookup_guide)
         prepareButton = findViewById(R.id.multi_programmer_prepare)
@@ -193,8 +190,7 @@ statusTextView = findViewById(R.id.multi_programmer_status)
 
     override fun onStop() {
         super.onStop()
-        try { unregisterReceiver(usbPermiss
-ionReceiver) } catch (_: Exception) {}
+        try { unregisterReceiver(usbPermissionReceiver) } catch (_: Exception) {}
     }
 
     override fun onDestroy() {
@@ -249,8 +245,7 @@ ionReceiver) } catch (_: Exception) {}
         ensurePermission(device) { granted ->
             if (!granted) {
                 statusTextView.text = "USB permission denied for helper firmware"
-           
-     return@ensurePermission
+                return@ensurePermission
             }
             statusTextView.text = "Flashing " + selectedMode.displayName + " helper firmware..."
             service.flashHelperFirmware(selectedMode.assetName, device) { success, msg ->
@@ -294,8 +289,7 @@ ionReceiver) } catch (_: Exception) {}
         }
     }
 
-    private fu
-n startProgramming() {
+    private fun startProgramming() {
         if (!isServiceBound || selectedDevices.isEmpty()) {
             Toast.makeText(this, "Select at least one device first", Toast.LENGTH_SHORT).show()
             return
@@ -348,8 +342,7 @@ n startProgramming() {
                 statusTextView.text = info.name + " no longer connected"
                 programNext(index + 1)
                 return
-   
-         }
+            }
             ensurePermission(usbDevice) { granted ->
                 if (!granted) {
                     statusTextView.text = "Permission denied: " + info.name
@@ -406,8 +399,7 @@ n startProgramming() {
 
         override fun onCreateViewHolder(parent: android.view.ViewGroup, viewType: Int): DeviceViewHolder {
             val view = layoutInflater.inflate(
-                android.R.layout.sim
-ple_list_item_multiple_choice, parent, false
+                android.R.layout.simple_list_item_multiple_choice, parent, false
             )
             return DeviceViewHolder(view)
         }
