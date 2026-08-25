@@ -2,28 +2,52 @@ package com.arduinomobileworkshop.toolchain
 
 import android.content.Context
 import android.util.Log
+import okhttp3.OkHttpClient
+import okhttp3.Request
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
+import java.io.FileOutputStream
+import java.util.concurrent.TimeUnit
 
 /**
  * Owns the arduino-cli lifecycle and the board / library indexes the UI binds to.
  *
- * The arduino-cli binary is only present when the APK was built via CI (bundled
- * as a jniLib). When it is absent (local debug builds, or before the first run),
- * every index operation fails soft: parsing yields nothing and the built-in
- * default board list is retained so the UI is never empty and the build never
- * depends on a working runtime CLI. Indexes are cached to disk so a cold start
- * can show the last-known state without re-downloading.
+ * Indexes are fetched in two ways, in priority order:
+ *  1. Over the network via OkHttp (downloads.arduino.cc package_index.json /
+ *     library_index.json), parsed with org.json. Real Arduino board packages
+ *     are downloaded into the sandboxed application storage directory.
+ *  2. Through the bundled arduino-cli binary (core/lib update-index + list
+ *     --format json) when it is present (CI-built jniLib).
+ *
+ * When neither path yields data (no network / no CLI), parsing fails soft: the
+ * built-in default board list is retained so the UI is never empty and the
+ * build never depends on a working runtime CLI. Indexes are cached to disk so a
+ * cold start can show the last-known state without re-downloading.
  */
 class ToolchainManager(private val context: Context) {
-    companion object { private const val TAG = "AMW_Toolchain" }
+    companion object {
+        private const val TAG = "AMW_Toolchain"
+        private const val PACKAGE_INDEX_URL = "https://downloads.arduino.cc/packages/package_index.json"
+        private const val LIBRARY_INDEX_URL = "https://downloads.arduino.cc/libraries/library_index.json"
+    }
 
     private val cli = ArduinoCliManager(context)
     private val toolchainDir = File(context.filesDir, "arduino-toolchain")
     private val cacheDir = File(toolchainDir, "cache")
     private val boardCacheFile = File(cacheDir, "boards.json")
     private val libraryCacheFile = File(cacheDir, "libraries.json")
+    private val profilesDir = File(toolchainDir, "profiles")
+    private val downloadsDir = File(toolchainDir, "downloads")
+
+    /** Single shared HTTP client (OkHttp recommends one instance per process). */
+    private val httpClient: OkHttpClient by lazy {
+        OkHttpClient.Builder()
+            .connectTimeout(15, TimeUnit.SECONDS)
+            .readTimeout(60, TimeUnit.SECONDS)
+            .writeTimeout(60, TimeUnit.SECONDS)
+            .build()
+    }
 
     @Volatile private var isInitialized = false
     private val boardLock = Any()
@@ -53,7 +77,7 @@ class ToolchainManager(private val context: Context) {
 
     fun initialize() {
         if (isInitialized) return
-        toolchainDir.mkdirs(); cacheDir.mkdirs()
+        toolchainDir.mkdirs(); cacheDir.mkdirs(); profilesDir.mkdirs(); downloadsDir.mkdirs()
         synchronized(boardLock) { if (!loadBoardCache()) initializeDefaultBoards() }
         synchronized(libraryLock) { loadLibraryCache() }
         isInitialized = true
@@ -70,11 +94,169 @@ class ToolchainManager(private val context: Context) {
         availableBoards += Board("rp2040:rp2040:rpipico", "Raspberry Pi Pico", "rp2040", "rp2040:rp2040", "4.x", "arm", "uf2", "uf2")
     }
 
+    // ---------------- Network fetch engine ----------------
+
+    /** Blocking HTTP GET; returns the response body or null on any failure. */
+    private fun fetchText(url: String): String? {
+        return try {
+            val request = Request.Builder().url(url).build()
+            httpClient.newCall(request).execute().use { response ->
+                if (!response.isSuccessful) {
+                    Log.w(TAG, "HTTP " + response.code + " for " + url)
+                    return null
+                }
+                response.body?.string()
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "fetchText failed for " + url + ": " + (e.message ?: ""))
+            null
+        }
+    }
+
+    /** Blocking download of [url] into [dest]; returns true on success. */
+    private fun downloadFile(url: String, dest: File, callback: ((Int) -> Unit)? = null): Boolean {
+        return try {
+            val request = Request.Builder().url(url).build()
+            httpClient.newCall(request).execute().use { response ->
+                if (!response.isSuccessful) return false
+                val body = response.body ?: return false
+                FileOutputStream(dest).use { out ->
+                    val input = body.byteStream()
+                    val buf = ByteArray(8192)
+                    while (true) {
+                        val n = input.read(buf)
+                        if (n <= 0) break
+                        out.write(buf, 0, n)
+                    }
+                    out.flush()
+                }
+                callback?.invoke(100)
+                true
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "downloadFile failed for " + url + ": " + (e.message ?: ""))
+            false
+        }
+    }
+
+    /**
+     * Fetches the real Arduino package index over the network, parses it into
+     * [availableBoards] and writes a per-platform board-profile JSON into the
+     * sandboxed profiles dir. Returns true on success.
+     */
+    private fun refreshBoardIndexFromNetwork(): Boolean {
+        val json = fetchText(PACKAGE_INDEX_URL) ?: return false
+        try { File(cacheDir, "package_index.json").writeText(json) } catch (_: Exception) {}
+        return parsePackageIndex(json)
+    }
+
+    private fun parsePackageIndex(json: String): Boolean {
+        var added = 0
+        try {
+            val root = JSONObject(json)
+            val packages = root.optJSONArray("packages") ?: return false
+            synchronized(boardLock) {
+                availableBoards.clear()
+                for (p in 0 until packages.length()) {
+                    val pkg = packages.optJSONObject(p) ?: continue
+                    val pkgName = pkg.optString("name")
+                    if (pkgName.isEmpty()) continue
+                    val platforms = pkg.optJSONArray("platforms") ?: continue
+                    for (pi in 0 until platforms.length()) {
+                        val plat = platforms.optJSONObject(pi) ?: continue
+                        val arch = plat.optString("architecture")
+                        val version = plat.optString("version")
+                        val platName = optStr(plat, "name") ?: arch
+                        val url = plat.optString("url")
+                        val fqbnPkg = pkgName + ":" + arch
+                        savePlatformProfile(pkgName, arch, version, platName, url, plat.optJSONArray("boards"))
+                        val boards = plat.optJSONArray("boards")
+                        if (boards != null) {
+                            for (b in 0 until boards.length()) {
+                                val boardObj = boards.optJSONObject(b) ?: continue
+                                val boardName = optStr(boardObj, "name") ?: continue
+                                val boardId = (pkgName + ":" + arch + ":" + sanitize(boardName))
+                                availableBoards += Board(
+                                    id = boardId,
+                                    name = boardName,
+                                    platform = arch,
+                                    packageName = fqbnPkg,
+                                    version = version,
+                                    architecture = arch,
+                                    uploadTool = optStr(boardObj, "upload_tool") ?: "",
+                                    programmer = optStr(boardObj, "programmer") ?: ""
+                                )
+                                added++
+                            }
+                        }
+                    }
+                }
+                if (availableBoards.isNotEmpty()) saveBoardCache()
+                if (availableBoards.isEmpty()) initializeDefaultBoards()
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "parsePackageIndex failed: " + (e.message ?: ""))
+            return false
+        }
+        Log.d(TAG, "Network board index parsed: " + added + " boards")
+        return added > 0
+    }
+
+    private fun savePlatformProfile(pkg: String, arch: String, version: String, name: String, url: String, boards: JSONArray?) {
+        try {
+            val profile = JSONObject().apply {
+                put("package", pkg)
+                put("architecture", arch)
+                put("version", version)
+                put("name", name)
+                put("url", url)
+                val arr = JSONArray()
+                if (boards != null) for (i in 0 until boards.length()) {
+                    val b = boards.optJSONObject(i) ?: continue
+                    arr.put(b.optString("name"))
+                }
+                put("boards", arr)
+            }
+            File(profilesDir, pkg + "_" + arch + "_" + version + ".json").writeText(profile.toString())
+        } catch (e: Exception) {
+            Log.w(TAG, "savePlatformProfile failed: " + (e.message ?: ""))
+        }
+    }
+
+    /** Lists downloaded board profile JSONs in the sandboxed profiles dir. */
+    fun listDownloadedProfiles(): List<File> = profilesDir.listFiles { f -> f.isFile && f.name.endsWith(".json") }?.toList() ?: emptyList()
+
+    /**
+     * Downloads the target board package archive referenced by the platform
+     * profile for [boardId] directly into the sandboxed downloads directory.
+     * Returns the downloaded file, or null on failure.
+     */
+    fun downloadBoardProfile(boardId: String): File? {
+        val board = getBoardConfig(boardId) ?: return null
+        val profile = listDownloadedProfiles().firstOrNull { f ->
+            f.name.startsWith(board.packageName.replace(":", "_") + "_")
+        } ?: return null
+        return try {
+            val url = JSONObject(profile.readText()).optString("url")
+            if (url.isEmpty()) return null
+            val dest = File(downloadsDir, url.substringAfterLast("/"))
+            if (downloadFile(url, dest)) dest else null
+        } catch (e: Exception) {
+            Log.w(TAG, "downloadBoardProfile failed: " + (e.message ?: ""))
+            null
+        }
+    }
+
+    private fun sanitize(name: String): String =
+        name.lowercase().replace(Regex("[^a-z0-9]"), "_").trim('_')
+
     // ---------------- Board index ----------------
 
     /** Downloads the package index, then enumerates every known board from it. */
     fun refreshBoardIndex(callback: ((Boolean, String) -> Unit)? = null) {
         Thread {
+            val netOk = refreshBoardIndexFromNetwork()
+            var msg = if (netOk) "Network index fetched" else "Network fetch failed"
             val update = cli.run("core", "update-index", timeoutSeconds = 120)
             val list = cli.run("board", "listall", "--format", "json", timeoutSeconds = 120)
             val parsed = parseBoardListall(list.output)
@@ -86,8 +268,8 @@ class ToolchainManager(private val context: Context) {
                 }
                 if (availableBoards.isEmpty()) initializeDefaultBoards()
             }
-            val ok = update.success && list.success && parsed.isNotEmpty()
-            callback?.invoke(ok, update.output + System.lineSeparator() + list.output)
+            val ok = (netOk || (update.success && list.success && parsed.isNotEmpty()))
+            callback?.invoke(ok, msg + System.lineSeparator() + update.output + System.lineSeparator() + list.output)
         }.start()
     }
 
@@ -174,10 +356,45 @@ class ToolchainManager(private val context: Context) {
 
     fun refreshLibraryIndex(callback: ((Boolean, String) -> Unit)? = null) {
         Thread {
+            val netJson = fetchText(LIBRARY_INDEX_URL)
+            if (netJson != null) {
+                try { File(cacheDir, "library_index.json").writeText(netJson) } catch (_: Exception) {}
+                val parsed = parseLibraryIndexNetwork(netJson)
+                synchronized(libraryLock) {
+                    if (parsed.isNotEmpty()) {
+                        installedLibraries.clear()
+                        installedLibraries += parsed
+                        saveLibraryCache()
+                    }
+                }
+            }
             val update = cli.run("lib", "update-index", timeoutSeconds = 120)
             refreshInstalledLibraries()
-            callback?.invoke(update.success, update.output)
+            callback?.invoke(update.success || netJson != null, update.output)
         }.start()
+    }
+
+    private fun parseLibraryIndexNetwork(json: String): List<Library> {
+        val out = mutableListOf<Library>()
+        try {
+            val root = JSONObject(json)
+            val arr = root.optJSONArray("libraries") ?: return out
+            for (i in 0 until arr.length()) {
+                val o = arr.optJSONObject(i) ?: continue
+                val name = optStr(o, "name") ?: continue
+                out += Library(
+                    id = name,
+                    name = name,
+                    version = optStr(o, "version") ?: "",
+                    author = optStr(o, "author") ?: optStr(o, "maintainer") ?: "",
+                    description = optStr(o, "sentence") ?: "",
+                    packageName = name
+                )
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "parseLibraryIndexNetwork failed: " + (e.message ?: ""))
+        }
+        return out
     }
 
     private fun parseLibraryList(json: String): List<Library> {
@@ -244,7 +461,13 @@ class ToolchainManager(private val context: Context) {
         Thread {
             val q = if (query.isBlank()) "a" else query
             val result = cli.run("lib", "search", q, "--format", "json", timeoutSeconds = 120)
-            callback(parseLibrarySearch(result.output))
+            val parsed = parseLibrarySearch(result.output)
+            if (parsed.isEmpty()) {
+                val netJson = fetchText(LIBRARY_INDEX_URL)
+                if (netJson != null) callback(parseLibraryIndexNetwork(netJson)) else callback(emptyList())
+            } else {
+                callback(parsed)
+            }
         }.start()
     }
 
@@ -328,11 +551,12 @@ class ToolchainManager(private val context: Context) {
 
     fun updateIndexes(callback: (Boolean, String) -> Unit) {
         Thread {
+            val netOk = refreshBoardIndexFromNetwork()
             val core = cli.run("core", "update-index", timeoutSeconds = 300)
             val lib = cli.run("lib", "update-index", timeoutSeconds = 300)
             refreshBoardIndex(null)
             refreshInstalledLibraries()
-            callback(core.success && lib.success, core.output + System.lineSeparator() + lib.output)
+            callback(core.success && lib.success || netOk, core.output + System.lineSeparator() + lib.output)
         }.start()
     }
 

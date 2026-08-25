@@ -23,4 +23,7 @@ android {
 
 dependencies {
     implementation("androidx.core:core-ktx:1.12.0")
+    // HTTP client used to fetch the real Arduino package / library indexes and
+    // to download target board package profiles into sandboxed app storage.
+    implementation("com.squareup.okhttp3:okhttp:4.12.0")
 }
