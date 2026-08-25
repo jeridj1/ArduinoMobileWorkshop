@@ -28,8 +28,9 @@
         <activity android:name=".ui.LogicAnalyzerActivity" android:exported="false" />
         <activity android:name=".ui.MultiProgrammerActivity" android:exported="false" />
 
-        <service android:name=".rp2040.services.LogicAnalyzerService" android:exported="false" />
-        <service android:name=".rp2040.services.RP2040ProgrammerService" android:exported="false" />
+        <!-- Services live in the rp2040 module; use fully-qualified names. -->
+        <service android:name="com.arduinomobileworkshop.rp2040.services.LogicAnalyzerService" android:exported="false" />
+        <service android:name="com.arduinomobileworkshop.rp2040.services.RP2040ProgrammerService" android:exported="false" />
 
         <!--
             Receives system USB attach/detach broadcasts. The intent-filter is
