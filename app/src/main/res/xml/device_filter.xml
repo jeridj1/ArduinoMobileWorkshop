@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Hardware profile array for USB_DEVICE_ATTACHED. Lists common hobbyist
+    microcontrollers by USB vendor ID. Kept in sync with the
+    UsbDeviceReceiver.SUPPORTED_VENDOR_IDS profile.
+-->
+<resources>
+    <!-- Vendor 9025 - Official Arduino (Uno, Leonardo, Mega, CDC/ACM, etc.) -->
+    <usb-device vendor-id="9025" />
+
+    <!-- Vendor 4292 - Silicon Labs CP210x -->
+    <usb-device vendor-id="4292" />
+
+    <!-- Vendor 6790 - Qinheng CH340 / CH341 clones -->
+    <usb-device vendor-id="6790" />
+
+    <!-- Vendor 11914 - Raspberry Pi Pico (RP2040) -->
+    <usb-device vendor-id="11914" />
+</resources>

@@ -23,6 +23,7 @@ android {
 
 dependencies {
     implementation("androidx.core:core-ktx:1.12.0")
-    // Use working usb-serial library from jitpack
-    implementation("com.github.mik3y:usb-serial-for-android:3.11.0")
+    // Standard USB-serial drivers for CH340, CP2102, FTDI, CDC/ACM (Arduino), etc.
+    // Pulled from JitPack (declared in settings.gradle.kts dependencyResolutionManagement).
+    implementation("com.github.mik3y:usb-serial-for-android:3.8.0")
 }
