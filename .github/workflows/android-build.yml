@@ -57,7 +57,8 @@ jobs:
           CGO_ENABLED=0 GOOS=android GOARCH=arm64 go build -buildvcs=false -o "$GITHUB_WORKSPACE/app/src/main/jniLibs/arm64-v8a/libarduino_cli.so" .
           chmod 755 "$GITHUB_WORKSPACE/app/src/main/jniLibs/arm64-v8a/libarduino_cli.so"
       - name: Set up Gradle
-        uses: gradle/actions/setup-gradle@v4
+        uses: gradle/actions/setup-gradl
+e@v4
       - name: Make gradlew executable
         run: chmod +x ./gradlew
       - name: Build debug APK
@@ -94,7 +95,7 @@ jobs:
             const runUrl = `${context.payload.repository.html_url}/actions/runs/${context.runId}`;
             const cliNote = ${{ steps.build_cli.outcome == 'failure' }} ? '\n\nNote: the arduino-cli Go cross-compile step failed or timed out (continue-on-error); the APK build below ran independently.\n' : '';
             const body = [
-              'CI build failed on commit `${context.sha.slice(0,7)}` (`' + context.sha + '`).',
+              'CI build failed on commit ' + context.sha.slice(0,7) + ' (`' + context.sha + '`).',
               cliNote,
               'Last ~150 lines of the Gradle build log:',
               '',
@@ -105,7 +106,8 @@ jobs:
               '[Failed workflow run](' + runUrl + ')'
             ].join('\n');
             await github.rest.issues.create({
-              owner: context.repo.owner,
+              o
+wner: context.repo.owner,
               repo: context.repo.repo,
               title: 'CI build failed: ' + context.sha.slice(0, 7),
               body: body,
