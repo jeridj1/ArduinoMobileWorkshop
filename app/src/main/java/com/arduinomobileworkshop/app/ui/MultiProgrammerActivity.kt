@@ -48,7 +48,8 @@ import java.io.File
 class MultiProgrammerActivity : AppCompatActivity() {
 
     /** Programmer modes with their hookup guides and helper-firmware assets. */
-    enum class ProgrammerMode(
+    enum c
+lass ProgrammerMode(
         val displayName: String,
         val assetName: String,
         val hookupGuide: String
@@ -74,7 +75,12 @@ class MultiProgrammerActivity : AppCompatActivity() {
             "Connect Pico GP4 -> Target MISO\n" +
             "Connect Pico GP5 -> Target MOSI\n" +
             "Connect Pico GND -> Target GND\n\n" +
-            "Flash helper firmware to prepare the Pico as an AVR-ISP programmer.")
+            "Flash helper firmware to prepare the Pico as an AVR-ISP programmer."),
+        UPDI("UPDI", "firmware/updi_helper.uf2",
+            "MODE: UPDI (Unified Program + Debug Interface)\n\n" +
+            "Connect Pico GP2 -> Target UPDI (single-wire data line)\n" +
+            "Connect Pico GND -> Target GND\n\n" +
+            "Flash helper firmware to prepare the Pico as a UPDI programmer.")
     }
 
     private var programmerService: RP2040ProgrammerService? = null
@@ -94,7 +100,8 @@ class MultiProgrammerActivity : AppCompatActivity() {
     private val scannedUsbDevices = mutableMapOf<String, UsbDevice>()
     private var permissionCallback: ((Boolean) -> Unit)? = null
 
-    private val selectedDevices = mutableListOf<DeviceInfo>()
+    private v
+al selectedDevices = mutableListOf<DeviceInfo>()
 
     private val deviceAdapter = DeviceAdapter(selectedDevices) { device, isSelected ->
         if (isSelected) selectedDevices.add(device) else selectedDevices.remove(device)
@@ -142,7 +149,8 @@ class MultiProgrammerActivity : AppCompatActivity() {
         deviceRecyclerView = findViewById(R.id.multi_programmer_devices)
         programButton = findViewById(R.id.multi_programmer_program)
         cancelButton = findViewById(R.id.multi_programmer_cancel)
-        statusTextView = findViewById(R.id.multi_programmer_status)
+        
+statusTextView = findViewById(R.id.multi_programmer_status)
         modeSpinner = findViewById(R.id.multi_programmer_mode)
         hookupGuideView = findViewById(R.id.multi_programmer_hookup_guide)
         prepareButton = findViewById(R.id.multi_programmer_prepare)
@@ -185,7 +193,8 @@ class MultiProgrammerActivity : AppCompatActivity() {
 
     override fun onStop() {
         super.onStop()
-        try { unregisterReceiver(usbPermissionReceiver) } catch (_: Exception) {}
+        try { unregisterReceiver(usbPermiss
+ionReceiver) } catch (_: Exception) {}
     }
 
     override fun onDestroy() {
@@ -240,7 +249,8 @@ class MultiProgrammerActivity : AppCompatActivity() {
         ensurePermission(device) { granted ->
             if (!granted) {
                 statusTextView.text = "USB permission denied for helper firmware"
-                return@ensurePermission
+           
+     return@ensurePermission
             }
             statusTextView.text = "Flashing " + selectedMode.displayName + " helper firmware..."
             service.flashHelperFirmware(selectedMode.assetName, device) { success, msg ->
@@ -284,7 +294,8 @@ class MultiProgrammerActivity : AppCompatActivity() {
         }
     }
 
-    private fun startProgramming() {
+    private fu
+n startProgramming() {
         if (!isServiceBound || selectedDevices.isEmpty()) {
             Toast.makeText(this, "Select at least one device first", Toast.LENGTH_SHORT).show()
             return
@@ -337,7 +348,8 @@ class MultiProgrammerActivity : AppCompatActivity() {
                 statusTextView.text = info.name + " no longer connected"
                 programNext(index + 1)
                 return
-            }
+   
+         }
             ensurePermission(usbDevice) { granted ->
                 if (!granted) {
                     statusTextView.text = "Permission denied: " + info.name
@@ -394,7 +406,8 @@ class MultiProgrammerActivity : AppCompatActivity() {
 
         override fun onCreateViewHolder(parent: android.view.ViewGroup, viewType: Int): DeviceViewHolder {
             val view = layoutInflater.inflate(
-                android.R.layout.simple_list_item_multiple_choice, parent, false
+                android.R.layout.sim
+ple_list_item_multiple_choice, parent, false
             )
             return DeviceViewHolder(view)
         }
