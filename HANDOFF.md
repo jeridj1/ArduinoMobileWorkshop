@@ -1,51 +1,59 @@
 # Arduino Mobile Workshop Handoff
 
 ## Purpose
+Arduino Mobile Workshop (AMW) is an Android-first development environment intended to feel familiar to Arduino IDE users while becoming a serious electronics development workbench on a phone or tablet.
 
-Arduino Mobile Workshop (AMW) is a public, Android-first development environment intended to feel familiar to users of the desktop Arduino IDE while being substantially better suited to phones and tablets.
+The flagship target is a Samsung Galaxy S23 Ultra. The intended experience is: connect a microcontroller over USB OTG, edit firmware, compile it, manage board cores/libraries, upload with real protocol confirmation, inspect serial data, and use RP2040 hardware-tool modes without needing a desktop computer.
 
-The primary goal is simple: connect a microcontroller to an Android device, edit or paste firmware, compile it locally on the phone, install missing board cores/libraries when needed, and upload the result without requiring a Windows/Mac/Linux computer.
+## User's current flagship specification
+The requested product direction is deliberately ambitious. Do not cut these features merely to make the first build easier:
 
-## Current repository state
+- Sketch editor: syntax highlighting, autocomplete, line numbers, error gutters, undo/redo, find/replace, S Pen-friendly hit targets.
+- Cloud compilation using real `arduino-cli` on the backend, returning the correct `.hex`, `.uf2`, or `.bin` artifact plus structured diagnostics translated into plain English.
+- Real USB upload with explicit stages, recovery/retry, and verification whenever the protocol supports it.
+- Serial monitor and serial plotter with live numeric graphs, multiple series, pause/export.
+- Real Arduino Boards Manager and Library Manager using current package/library indexes.
+- RP2040 UF2 and PICOBOOT flashing, including multi-programmer operation.
+- Logic analyzer with waveform zoom/pan, dual cursors, delta-time/frequency/duty measurements, triggers, and UART/I2C/SPI decoding where the hardware supports it.
+- AI assistant for explaining compiler/upload errors and generating/fixing sketches.
+- Example/project template gallery.
+- S Pen, tablet and Samsung DeX-friendly layouts.
+- High-quality dark/light/system themes and polished loading, empty, permission, disconnected, error, and recovery states.
 
-This repository is intentionally at the beginning of implementation. The initial README establishes the project direction. Do not assume features are implemented merely because they appear in the roadmap.
+## Architecture decision from the latest design work
+The replacement architecture being designed is:
 
-## Product direction
+- Expo/React Native mobile application as the primary UI.
+- A native Android/Kotlin Expo module for USB Host functionality. Expo Go cannot provide the real USB-host path required for production hardware access.
+- One `UsbTransport` interface shared by the UI, with `native` and deterministic `mock` implementations.
+- Hono + oRPC backend.
+- Drizzle/Turso persistence.
+- Cloud `arduino-cli` compilation rather than depending on on-device execution.
 
-The interface should deliberately resemble the classic Arduino IDE wherever that makes navigation easier:
+Planned backend areas include compile, diagnostics, boards, libraries, sketches/versioning, AI assistance, and examples. Planned mobile areas include Sketches, Editor, Devices, Bench, and Settings.
 
-- Familiar sketch/editor layout.
-- New, Open, Save, Save As, Verify/Compile, Upload, Serial Monitor.
-- Board selection and port selection in obvious locations.
-- Boards Manager and Library Manager concepts.
-- Human-readable compiler and upload errors.
-- A simple advanced/settings area for users who need deeper control.
-- Touch-friendly controls without making the interface feel like a toy.
-- Stylus support through normal Android text-selection, cursor, scrolling, and precise touch targets.
-- Responsive layouts for phones, tablets, and future devices. Do not hard-code the Galaxy S23 Ultra dimensions.
+The native USB module is expected to cover Android USB enumeration/permission plus CDC-ACM, CH340, CP210x and FTDI serial transport, and verified upload backends for supported AVR, ESP and RP2040 protocols. Long-running flashing/capture operations need appropriate Android foreground-service behavior and notification handling.
 
-## Core technical direction
+## Critical reliability rule
+Never convert an uncertain hardware state into a confident success. Upload screens must show real staged states such as preparing/resetting/handshake/erasing/writing/verifying/done/failed. A final `done` state means the protocol actually established completion. If a protocol cannot verify read-back, say that explicitly.
 
-Use a layered architecture so the Android UI is not permanently tied to the compiler implementation.
+## Current GitHub state
+Repository: `jeridj1/ArduinoMobileWorkshop`
+Default branch: `main`
 
-Suggested layers:
+Important: code shown in another AI/Runable session is NOT automatically present in GitHub. Only commits actually pushed to GitHub are authoritative for cross-account continuation. The latest GitHub history contains the earlier Kotlin implementation and subsequent fixes, but the newer Expo/React Native migration described above must not be assumed to have been pushed unless it appears in Git history.
 
-1. Android UI
-2. Project/workspace manager
-3. Toolchain orchestration
-4. Board/core/package manager
-5. Library manager
-6. Compiler/linker adapter
-7. Upload/programmer transport
-8. USB/serial abstraction
-9. Device capability database
-10. Optional hardware-tool plugins
+Recent relevant GitHub commits include:
+- `b81ac249d5c975d3534de43e0cbb8ac53c8fcb59` - fix for the `ProgrammerMode` enum string-literal CI breakage.
+- `04a8c156d7a9a247ee4a28a8c3bf20728f1ca18d` - historical session-state finalization note.
+- `6f8e5e8287651bc4fa2adc039549d6b8331f4371` - RP2040 configuration/pin-map screen and helper-firmware pipeline.
+- `5012071498e75cbd2500349718ee0014101de103` - Arduino CLI permission-denied fix and interactive board/library managers.
+- `f7c4b0e4f5dedb08364a2b97dc8a44e97ac6b440` - RP2040 PICOBOOT compile fixes.
 
-Arduino CLI should be evaluated as the foundation for Arduino-compatible board/core/package management, compilation, and uploading rather than reimplementing the Arduino build system from scratch.
+Historical CI issue #17 reported `app:compileDebugKotlin` failure from malformed `MultiProgrammerActivity.kt` around commit `08231a7`. The source on current main has since been repaired, but CI must always be checked rather than inferred from old documentation.
 
-## AI continuation protocol
-
-Every AI/developer session MUST begin by reading:
+## Important existing handoff material
+Before changing the project, read:
 
 1. `README.md`
 2. `HANDOFF.md`
@@ -53,69 +61,36 @@ Every AI/developer session MUST begin by reading:
 4. `ROADMAP.md`
 5. `ARCHITECTURE.md`
 6. `SECURITY.md`
-7. The relevant source files and recent commits.
+7. recent commits and current CI workflow files
 
-Before ending a session, the contributor MUST update `SESSION_STATE.md` with:
+Do not assume a roadmap item is implemented merely because documentation says it is.
 
-- Current date/time.
-- What was actually completed.
-- Files created or changed.
-- What was tested.
-- What failed.
-- Known bugs.
-- Exact next task.
-- Any architectural decisions made.
-- Any assumptions that still need verification.
-- The safest first action for the next contributor.
+## Known historical risks
+The older Kotlin implementation had placeholder RP2040 helper UF2 assets. Those cannot be treated as real programmer firmware. The older PICOBOOT implementation also requires real-device validation. Any new implementation must keep these limitations explicit until hardware testing proves otherwise.
 
-Never claim a feature works because documentation says it should work. Inspect code and test results.
+## Cross-account continuation
+GitHub is the handoff boundary. A coworker can continue from another Runable account if the working tree is pushed here. Credits/usage allowance do not need to transfer between accounts for the code to transfer.
 
-If an AI runs out of context, reaches a usage limit, or must stop unexpectedly, the last completed atomic task should be recorded in `SESSION_STATE.md` before stopping whenever possible. The next AI should continue from that file rather than asking the user to reconstruct the entire project history.
+Before the current Runable session reaches its usage limit, the safest handoff sequence is:
+
+1. Commit all coherent work.
+2. Push it to `jeridj1/ArduinoMobileWorkshop`.
+3. Update `SESSION_STATE.md` with the exact latest commit SHA, build/test result, known failures, and next task.
+4. Leave this `HANDOFF.md` intact.
+5. Have the coworker open/clone the repository and use the continuation prompt below.
+
+### Suggested continuation prompt
+> Continue `jeridj1/ArduinoMobileWorkshop` from the latest GitHub commit. Read `HANDOFF.md`, `SESSION_STATE.md`, `README.md`, `ROADMAP.md`, `ARCHITECTURE.md`, `SECURITY.md`, recent commits, and CI workflows before changing anything. The target is a production-quality flagship Android app for a Samsung Galaxy S23 Ultra. The requested feature set includes the sketch editor, cloud real `arduino-cli` compilation with human-readable diagnostics, native Android USB Host transport, verified firmware upload/recovery, serial monitor/plotter, real Boards and Library Managers, RP2040 UF2/PICOBOOT and multi-programmer support, logic analyzer tools with protocol decoding, AI assistance, examples/templates, and S Pen/tablet/DeX layouts. Establish the actual current build/CI state first. Fix blockers in dependency order. Do not fake hardware success or hide failures with mocks. Use mocks only where they are explicitly the simulator fallback. Commit each coherent milestone and update `SESSION_STATE.md` before stopping.
 
 ## Change discipline
 
-- Prefer small, understandable commits.
-- Do not rewrite working code merely for cosmetic reasons.
-- Do not add dependencies without documenting why they are needed.
-- Do not silently remove functionality.
-- Keep public documentation synchronized with implementation.
-- Mark experimental functionality clearly.
-- Never report an untested build as verified.
+- Prefer small coherent commits.
+- Do not silently remove requested functionality.
+- Do not add dependencies without documenting why.
+- Do not claim a build is verified unless the build/test result actually exists.
+- Keep documentation synchronized with implementation.
+- Keep experimental hardware protocols clearly marked until tested on physical hardware.
+- Preserve the public repository's security boundary: programming, diagnostics, firmware analysis, and recovery of authorized hardware are in scope; unauthorized access automation is not.
 
 ## Relationship to OpenDeviceToolkit
-
-The user's existing private repository `jeridj1/OpenDeviceToolkit` contains broader device-diagnostic/workbench concepts, including an earlier handoff that identifies an RP2040 multifunction hardware bridge as a future direction. AMW may eventually share reusable libraries or interfaces with that project.
-
-Do NOT copy private repository content into this public repository merely because it exists there. Reuse only independently implementable concepts or code that is explicitly suitable for public release.
-
-The long-term relationship should look like:
-
-AMW = public mobile development/firmware workbench.
-ODT = broader device diagnostics and engineering workbench.
-Shared components = only deliberately separated, documented, reusable modules.
-
-## RP2040 expansion
-
-A major optional feature is an RP2040-based hardware accessory that can turn the phone into a practical electronics bench instrument.
-
-Potential modes include:
-
-- Logic analyzer.
-- UART/serial bridge.
-- I2C monitor/tool.
-- SPI monitor/tool.
-- GPIO analyzer.
-- SWD/CMSIS-DAP programming/debug interface where supported.
-- Firmware programming interfaces for supported targets.
-- Frequency/period measurement.
-- Pulse/PWM measurement and generation.
-
-"Universal programmer" must be treated as a long-term goal, not a promise that every chip family can be programmed with one circuit. Each target family needs an explicit electrical protocol, voltage level, reset/programming sequence, and software backend.
-
-## Public-project security boundary
-
-This public edition is an engineering, programming, diagnostic, and recovery tool. It must NOT include automatic vulnerability discovery, exploit selection, credential attacks, unauthorized-access automation, or code intended to gain privileged access to arbitrary devices.
-
-Device identification, protocol inspection, firmware analysis, debugging, programming, and recovery of devices the user owns or is authorized to service are within the intended scope.
-
-See `SECURITY.md` for the detailed boundary.
+The user's broader OpenDeviceToolkit project contains related device-diagnostics/workbench concepts. Do not copy private code into this public repository merely because it exists there. Shared components should be deliberately separated and suitable for public release.
