@@ -17,6 +17,72 @@
 - extractNativeLibs="true" + useLegacyPackaging = true so jniLibs are extracted
   to nativeLibraryDir on install (the only path Android allows execution from).
 
+## Session 2026-08-28 — Production hardening (PR #16 branch)
+
+Date: 2026-08-28 (UTC). Branch: feat/updi-programmer-mode (PR #16).
+
+### Completed
+- CI follow-up: detected ci-failure issue #17 (commit 08231a7 had corrupted
+  MultiProgrammerActivity.kt with stray mid-token newlines). Reconstructed
+  the clean main source + added the UPDI enum entry (backslash-n-escaped
+  string pattern); pushed 7fa5de0. CI re-verified GREEN (check-run "build"
+  success, run 32894683754).
+- Added missing app/src/main/assets/firmware/updi_helper.uf2 placeholder so
+  the UPDI "Prepare Pico" path can open the asset (matches the other 3 helper
+  firmware placeholders, which are still placeholder text files).
+- Added JVM unit tests:
+  - workspace: SketchParserTest (parse/reconstruct, includes, setup/loop
+    extraction, function detection, comments, empty source).
+  - rp2040: RP2040ManagerTest (VID/PID constants, scanForDevices filtering,
+    bootloader-only scan with mocked UsbManager/UsbDevice).
+  - toolchain: ToolchainManagerTest (default board catalog via initialize(),
+    lookup by id/name, add/remove board config).
+- Enabled unit-test deps + testOptions.isReturnDefaultValues in toolchain and
+  rp2040 modules; workspace already had junit.
+- Production release APK: app/build.gradle.kts release variant now signs with
+  the debug keystore by default (installable CI artifact) and supports a
+  production keystore via AMW_KEYSTORE_FILE / AMW_KEYSTORE_PASSWORD /
+  AMW_KEY_ALIAS / AMW_KEY_PASSWORD env vars. CI workflow builds
+  assembleRelease and uploads app-release.apk.
+
+### Files changed this session
+- app/src/main/java/com/arduinomobileworkshop/app/ui/MultiProgrammerActivity.kt
+- app/src/main/assets/firmware/updi_helper.uf2 (new)
+- app/build.gradle.kts (release signing config)
+- .github/workflows/android-build.yml (assembleRelease + release artifact)
+- toolchain/build.gradle.kts (test deps + testOptions)
+- rp2040/build.gradle.kts (test deps + testOptions)
+- workspace/src/test/java/com/arduinomobileworkshop/workspace/SketchParserTest.kt (new)
+- rp2040/src/test/java/com/arduinomobileworkshop/rp2040/RP2040ManagerTest.kt (new)
+- toolchain/src/test/java/com/arduinomobileworkshop/toolchain/ToolchainManagerTest.kt (new)
+- ROADMAP.md, SESSION_STATE.md (status updates)
+
+### What was tested
+- CI: assembleDebug + testDebugUnitTest + assembleRelease, all green.
+- Unit tests run in CI across all modules (workspace, rp2040, toolchain, usb).
+
+### Known limitations / NOT done (honest)
+- Toolchain compile/upload/install still delegate to the bundled arduino-cli
+  binary; full on-device validation requires a real Android device + board.
+- Helper-firmware UF2 images (incl. updi) are placeholder text, not real
+  binaries; PICOBOOT flashing needs real compiled UF2 + a Pico in BOOTSEL.
+- RP2040 PICOBOOT/UF2 streaming and Logic Analyzer capture are best-effort
+  reconstructions pending hardware validation.
+- isMinifyEnabled stays false for the release build to avoid R8 stripping the
+  JNI/ProcessBuilder arduino-cli path; enable R8 + proguard rules before a
+  store release.
+- Hardware-dependent features (USB serial I/O, real flashing, logic capture)
+  cannot be validated without physical devices; only compile + unit-test
+  surfaces are CI-verified.
+
+### Exact next task
+- Replace placeholder UF2 helper-firmware images with real compiled binaries.
+- On-device smoke test: connect a Pico in BOOTSEL, run Prepare Pico, verify.
+- Enable R8 minification with verified proguard rules for a signed store build.
+
+### Safest first action for next contributor
+- Pull feat/updi-programmer-mode, confirm CI green, then merge PR #16.
+
 ## Milestone Status — CRITICAL PRODUCTION FINALIZATION ASSIGNMENT
 
 ALL THREE PARTS COMPLETE. CI GREEN ON MAIN (HEAD = 6f8e5e8).

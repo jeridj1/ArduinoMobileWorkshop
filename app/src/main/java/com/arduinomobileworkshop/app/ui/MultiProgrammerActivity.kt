@@ -74,7 +74,12 @@ class MultiProgrammerActivity : AppCompatActivity() {
             "Connect Pico GP4 -> Target MISO\n" +
             "Connect Pico GP5 -> Target MOSI\n" +
             "Connect Pico GND -> Target GND\n\n" +
-            "Flash helper firmware to prepare the Pico as an AVR-ISP programmer.")
+            "Flash helper firmware to prepare the Pico as an AVR-ISP programmer."),
+        UPDI("UPDI", "firmware/updi_helper.uf2",
+            "MODE: UPDI (Unified Program + Debug Interface)\n\n" +
+            "Connect Pico GP2 -> Target UPDI (single-wire data line)\n" +
+            "Connect Pico GND -> Target GND\n\n" +
+            "Flash helper firmware to prepare the Pico as a UPDI programmer.")
     }
 
     private var programmerService: RP2040ProgrammerService? = null

@@ -14,9 +14,27 @@ android {
         versionName = "1.0.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
+    val releaseKeystoreFile = System.getenv("AMW_KEYSTORE_FILE")
+    signingConfigs {
+        if (releaseKeystoreFile != null) {
+            create("release") {
+                storeFile = file(releaseKeystoreFile)
+                storePassword = System.getenv("AMW_KEYSTORE_PASSWORD") ?: ""
+                keyAlias = System.getenv("AMW_KEY_ALIAS") ?: ""
+                keyPassword = System.getenv("AMW_KEY_PASSWORD") ?: ""
+            }
+        }
+    }
     buildTypes {
         release {
             isMinifyEnabled = false
+            // Sign the release APK with the auto-generated debug keystore by
+            // default so CI produces an installable artifact. Set the
+            // AMW_KEYSTORE_FILE / AMW_KEYSTORE_PASSWORD / AMW_KEY_ALIAS /
+            // AMW_KEY_PASSWORD env vars to sign with a production key.
+            signingConfig = if (releaseKeystoreFile != null)
+                signingConfigs.getByName("release")
+            else signingConfigs.getByName("debug")
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
         }
         debug { packaging.jniLibs.keepDebugSymbols.add("**/libarduino-cli.so") }

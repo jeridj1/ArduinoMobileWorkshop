@@ -14,7 +14,7 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
       - name: Set up JDK 17
@@ -24,6 +24,8 @@ jobs:
           distribution: 'temurin'
       - name: Set up Go
         uses: actions/setup-go@v6
+        timeout-minutes: 5
+        continue-on-error: true
         with:
           go-version: '1.26.1'
           check-latest: true
@@ -41,20 +43,24 @@ jobs:
         uses: gradle/actions/setup-gradle@v4
       - name: Make gradlew executable
         run: chmod +x ./gradlew
-      - name: Build debug APK
+      - name: Build, test, and package APKs
         run: |
-          ./gradlew clean assembleDebug --stacktrace --no-daemon 2>&1 | tee build.log
-          test -s app/build/outputs/apk/debug/app-debug.apk
-      - name: Run unit tests
-        run: |
-          ./gradlew testDebugUnitTest --stacktrace --continue --no-daemon 2>&1 | tee -a build.log
-      - name: Verify APK exists
+          ./gradlew assembleDebug testDebugUnitTest assembleRelease --stacktrace --continue --no-daemon 2>&1 | tee build.log
+      - name: Verify debug APK exists
         run: test -s app/build/outputs/apk/debug/app-debug.apk
+      - name: Verify release APK exists
+        run: test -s app/build/outputs/apk/release/app-release.apk
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: ArduinoMobileWorkshop-debug
           path: app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+      - name: Upload release APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: ArduinoMobileWorkshop-release
+          path: app/build/outputs/apk/release/app-release.apk
           if-no-files-found: error
       - name: Upload build log
         if: always()
