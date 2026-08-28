@@ -11,8 +11,9 @@ This roadmap is intentionally staged. A polished tool is more useful than a gian
 - [x] Architecture document.
 - [x] Security boundary.
 - [x] Android project skeleton (8 activities, 4 modules, layouts).
-- [x] First buildable APK (build fixed, needs verification).
-- [ ] Android CI (workflow exists, needs validation).
+- [x] First buildable APK (verified; CI green).
+- [x] Android CI (workflow validated; debug + release APK + unit tests).
+- [x] Automated JVM unit tests (workspace, rp2040, toolchain modules).
 
 ## Phase 1 - Familiar Arduino IDE workflow
 

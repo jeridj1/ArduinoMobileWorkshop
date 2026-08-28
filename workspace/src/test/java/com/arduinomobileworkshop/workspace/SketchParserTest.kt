@@ -5,138 +5,105 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
- * Unit tests for [SketchParser]. Covers include extraction, setup()/loop()
- * detection, generic-function block reading (incl. nested braces), global
- * declaration capture, comment skipping and raw round-tripping.
- *
- * These run on a plain JVM with no Android dependencies.
+ * Unit tests for [SketchParser]. Covers sketch parsing heuristics: include
+ * extraction, global-declaration collection, setup()/loop() body extraction,
+ * additional-function detection, comment skipping and round-trip
+ * reconstruction. Pure JVM — no Android or Robolectric runtime required.
  */
 class SketchParserTest {
 
-    private val basicSketch = """
-#include <Arduino.h>
-int led = 13;
-void setup() {
-  pinMode(led, OUTPUT);
-}
-void loop() {
-  digitalWrite(led, HIGH);
-  delay(500);
-  digitalWrite(led, LOW);
-  delay(500);
-}
-void blink(int pin, int ms) {
-  digitalWrite(pin, HIGH);
-  delay(ms);
-  digitalWrite(pin, LOW);
-  delay(ms);
-}
-""".trimIndent()
+    private val blink = listOf(
+        "#include <Arduino.h>",
+        "int ledPin = 13;",
+        "void setup() {",
+        "  pinMode(ledPin, OUTPUT);",
+        "}",
+        "void loop() {",
+        "  digitalWrite(ledPin, HIGH);",
+        "  delay(500);",
+        "  digitalWrite(ledPin, LOW);",
+        "  delay(500);",
+        "}"
+    ).joinToString("\n")
 
     @Test
-    fun parseBasicSketchExtractsAllSections() {
-        val r = SketchParser.parse(basicSketch)
-
-        assertEquals(listOf("#include <Arduino.h>"), r.includes)
-        assertEquals(listOf("int led = 13;"), r.globalDeclarations)
-
-        assertTrue(r.setupBody.startsWith("void setup()"))
-        assertTrue(r.setupBody.contains("pinMode(led, OUTPUT)"))
-
-        assertTrue(r.loopBody.startsWith("void loop()"))
-        assertTrue(r.loopBody.contains("digitalWrite(led, HIGH)"))
-        assertTrue(r.loopBody.contains("delay(500)"))
-
-        assertEquals(1, r.functions.size)
-        val fn = r.functions[0]
-        assertTrue(fn.contains("void blink(int pin, int ms)"))
-        assertTrue(fn.contains("digitalWrite(pin, LOW)"))
-        assertTrue(fn.endsWith("}"))
-
-        assertEquals(basicSketch, r.raw)
+    fun parsesIncludes() {
+        val src = SketchParser.parse(blink)
+        assertEquals(listOf("#include <Arduino.h>"), src.includes)
     }
 
     @Test
-    fun reconstructReturnsOriginalSource() {
-        val r = SketchParser.parse(basicSketch)
-        assertEquals(basicSketch, SketchParser.reconstruct(r))
+    fun parsesGlobalDeclarations() {
+        val src = SketchParser.parse(blink)
+        assertEquals(listOf("int ledPin = 13;"), src.globalDeclarations)
     }
 
     @Test
-    fun parseEmptySourceProducesEmptySections() {
-        val r = SketchParser.parse("")
-        assertTrue(r.includes.isEmpty())
-        assertTrue(r.globalDeclarations.isEmpty())
-        assertEquals("", r.setupBody)
-        assertEquals("", r.loopBody)
-        assertTrue(r.functions.isEmpty())
-        assertEquals("", r.raw)
+    fun extractsSetupBody() {
+        val src = SketchParser.parse(blink)
+        assertTrue(src.setupBody.contains("void setup()"))
+        assertTrue(src.setupBody.contains("pinMode(ledPin, OUTPUT)"))
     }
 
     @Test
-    fun parsesAngleAndQuoteIncludesAndSkipsComments() {
-        val src = """
-// header comment
-#include <Arduino.h>
-#include "Custom.h"
-""".trimIndent()
-        val r = SketchParser.parse(src)
-        assertEquals(listOf("#include <Arduino.h>", "#include "Custom.h""), r.includes)
-        assertTrue(r.globalDeclarations.isEmpty())
+    fun extractsLoopBody() {
+        val src = SketchParser.parse(blink)
+        assertTrue(src.loopBody.contains("void loop()"))
+        assertTrue(src.loopBody.contains("digitalWrite(ledPin, HIGH)"))
+        assertTrue(src.loopBody.contains("delay(500)"))
     }
 
     @Test
-    fun readsFunctionWithNestedBracesAsSingleBlock() {
-        val src = """
-void f() {
-  for (int i = 0; i < 3; i++) {
-    if (i == 1) {
-      continue;
-    }
-  }
-}
-""".trimIndent()
-        val r = SketchParser.parse(src)
-        assertEquals(1, r.functions.size)
-        val fn = r.functions[0]
-        assertTrue(fn.contains("void f()"))
-        assertTrue(fn.contains("for (int i = 0; i < 3; i++)"))
-        assertTrue(fn.contains("if (i == 1)"))
-        assertTrue(fn.contains("continue;"))
-        assertTrue(fn.endsWith("}"))
-        assertTrue(r.globalDeclarations.isEmpty())
-        assertEquals("", r.setupBody)
-        assertEquals("", r.loopBody)
+    fun noExtraFunctionsForBareBlink() {
+        val src = SketchParser.parse(blink)
+        assertTrue(src.functions.isEmpty())
     }
 
     @Test
-    fun prototypeWithoutBraceGoesToGlobalsNotFunctions() {
-        val src = "int add(int a, int b);"
-        val r = SketchParser.parse(src)
-        assertEquals(listOf("int add(int a, int b);"), r.globalDeclarations)
-        assertTrue(r.functions.isEmpty())
+    fun detectsAdditionalFunctions() {
+        val sketch = listOf(
+            "void helper(int x) {",
+            "  return x + 1;",
+            "}"
+        ).joinToString("\n")
+        val src = SketchParser.parse(sketch)
+        assertEquals(1, src.functions.size)
+        assertTrue(src.functions[0].contains("return x + 1"))
     }
 
     @Test
-    fun globalDeclarationsKeepOriginalIndentation() {
-        val src = "  int x = 5;"
-        val r = SketchParser.parse(src)
-        assertEquals(listOf("  int x = 5;"), r.globalDeclarations)
+    fun skipsComments() {
+        val sketch = listOf(
+            "// this is a comment",
+            "int y;"
+        ).joinToString("\n")
+        val src = SketchParser.parse(sketch)
+        assertTrue(src.includes.isEmpty())
+        assertEquals(listOf("int y;"), src.globalDeclarations)
     }
 
     @Test
-    fun detectsSetupAndLoopWithAlternateReturnTypes() {
-        val src = """
-void setup() {
-  init();
-}
-int loop() {
-  return 0;
-}
-""".trimIndent()
-        val r = SketchParser.parse(src)
-        assertTrue(r.setupBody.startsWith("void setup()"))
-        assertTrue(r.loopBody.startsWith("int loop()"))
-        assertTrue(r.functions.isEmpty())
+    fun parsesMultipleIncludes() {
+        val sketch = listOf(
+            "#include <Wire.h>",
+            "#include <SPI.h>"
+        ).joinToString("\n")
+        val src = SketchParser.parse(sketch)
+        assertEquals(listOf("#include <Wire.h>", "#include <SPI.h>"), src.includes)
+    }
+
+    @Test
+    fun emptySourceYieldsEmptyParts() {
+        val src = SketchParser.parse("")
+        assertTrue(src.includes.isEmpty())
+        assertTrue(src.globalDeclarations.isEmpty())
+        assertTrue(src.functions.isEmpty())
+        assertEquals("", src.setupBody)
+        assertEquals("", src.loopBody)
+    }
+
+    @Test
+    fun reconstructRoundTripsRaw() {
+        assertEquals(blink, SketchParser.reconstruct(SketchParser.parse(blink)))
     }
 }

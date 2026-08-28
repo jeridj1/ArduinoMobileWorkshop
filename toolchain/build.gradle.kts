@@ -19,6 +19,11 @@ android {
     kotlinOptions {
         jvmTarget = "17"
     }
+    testOptions {
+        unitTests {
+            isReturnDefaultValues = true
+        }
+    }
 }
 
 dependencies {
@@ -26,4 +31,6 @@ dependencies {
     // HTTP client used to fetch the real Arduino package / library indexes and
     // to download target board package profiles into sandboxed app storage.
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
+    testImplementation("junit:junit:4.13.2")
+    testImplementation("org.mockito.kotlin:mockito-kotlin:5.4.0")
 }
